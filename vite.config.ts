@@ -10,5 +10,8 @@ export default defineConfig({
   },
   define: {
     __PWA__: false,
-  }
+  },
+  optimizeDeps: {
+    include: ['tailwindcss'],
+  },
 })
