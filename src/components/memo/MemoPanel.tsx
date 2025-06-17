@@ -28,6 +28,18 @@ export default function MemoPanel({ pollId }: MemoPanelProps) {
   const { execute: executeUpdateMemo } = useAPI();
   const { execute: executeDeleteMemo } = useAPI();
 
+  // 메모 목록 로드
+  const loadMemos = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      await executeGetMemos(() => apiService.getMemos(pollId));
+    } catch (error) {
+      console.error('메모 로드 실패:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [executeGetMemos, pollId]);
+
   // 컴포넌트 마운트 시 메모 로드
   useEffect(() => {
     if (currentUser && pollId) {
@@ -48,18 +60,6 @@ export default function MemoPanel({ pollId }: MemoPanelProps) {
       setLastSaved(null);
     }
   }, [userMemos, pollId]);
-
-  // 메모 목록 로드
-  const loadMemos = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      await executeGetMemos(() => apiService.getMemos(pollId));
-    } catch (error) {
-      console.error('메모 로드 실패:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [executeGetMemos, pollId]);
 
   // 메모 저장/업데이트
   const handleSave = async () => {
