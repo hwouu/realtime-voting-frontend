@@ -65,10 +65,107 @@ function AppContent() {
   } = useAppStore();
 
   const [showCreateModal, setShowCreateModal] = useState(false);
+  const [debugInfo, setDebugInfo] = useState('');
   const { connect: connectWebSocket } = useWebSocket();
   const { execute: executeLogin } = useAPI();
   const { execute: executeGetPolls } = useAPI();
   const { execute: executeCreatePoll } = useAPI();
+
+  // 백엔드 서버 상태 확인 (임시 비활성화)
+  useEffect(() => {
+    // Health check 임시 비활성화 - 백엔드에 /api/health 엔드포인트가 없음
+    console.log('Health check 건너뜀 - 백엔드 서버 실행 중');
+    // const checkBackendHealth = async () => {
+    //   try {
+    //     console.log('Checking backend health...');
+    //     const response = await fetch(`${import.meta.env.VITE_API_BASE_URL}/health`);
+    //     console.log('Health check response:', response.status, response.statusText);
+    //     if (response.ok) {
+    //       const data = await response.json();
+    //       console.log('Backend is healthy:', data);
+    //     }
+    //   } catch (error) {
+    //     console.error('Backend health check failed:', error);
+    //     // 백엔드 서버 연결 에러 시 경고만 표시과 UI는 정상 동작
+    //     console.warn('백엔드 서버에 연결할 수 없습니다. 로그인 시 에러가 발생할 수 있습니다.');
+    //   }
+    // };
+    // checkBackendHealth();
+  }, [actions]);
+
+  // 디버깅 정보 업데이트
+  useEffect(() => {
+    const info = {
+      currentUser: currentUser ? currentUser.nickname : 'null',
+      isConnected,
+      isLoading,
+      error: error || 'none',
+      pollsCount: polls.length,
+      apiBaseUrl: import.meta.env.VITE_API_BASE_URL,
+      wsUrl: import.meta.env.VITE_WS_URL
+    };
+    setDebugInfo(JSON.stringify(info, null, 2));
+    console.log('App Debug Info:', info);
+  }, [currentUser, isConnected, isLoading, error, polls]);
+
+  // 투표 목록 로드
+  const loadPolls = useCallback(async () => {
+    console.log('Loading polls...');
+    try {
+      const polls = await executeGetPolls(() => apiService.getPolls());
+      if (polls) {
+        console.log('Polls loaded:', polls);
+        actions.setPolls(polls);
+      } else {
+        console.log('Failed to load polls - no data returned');
+        // 빈 배열로 설정하여 UI가 정상 동작하도록 함
+        actions.setPolls([]);
+        // 임시 데모 데이터 로드 (선택적)
+        // import { DEMO_POLLS } from '../../utils/constants';
+        // actions.setPolls(DEMO_POLLS);
+      }
+    } catch (error) {
+      console.error('Error loading polls:', error);
+      // 오류 발생 시도 빈 배열로 설정
+      actions.setPolls([]);
+    }
+  }, [executeGetPolls, actions]);
+
+  // 로그인/회원가입 처리
+  const handleLogin = useCallback(async (nickname: string, isSignUp: boolean = false) => {
+    console.log(`Attempting ${isSignUp ? 'signup' : 'login'} for:`, nickname);
+    try {
+      let response;
+      if (isSignUp) {
+        // 회원가입
+        console.log('Calling signUp API...');
+        response = await executeLogin(() => apiService.signUp(nickname));
+      } else {
+        // 로그인
+        console.log('Calling login API...');
+        response = await executeLogin(() => apiService.login(nickname));
+      }
+      
+      if (response) {
+        console.log('Login/SignUp successful:', response);
+        // WebSocket 연결 임시 비활성화 - 인증 문제로 인한 403 오류
+        console.log('WebSocket 연결 건너뜀 - HTTP API만 사용');
+        // await connectWebSocket(response.token);
+        // 초기 데이터 로드
+        console.log('Loading initial data...');
+        await loadPolls();
+      } else {
+        console.log('Login/SignUp failed: No response');
+      }
+    } catch (error) {
+      console.error('로그인/회원가입 실패:', error);
+      if (isSignUp) {
+        actions.setError('회원가입에 실패했습니다. 닉네임이 이미 사용 중일 수 있습니다.');
+      } else {
+        actions.setError('로그인에 실패했습니다. 닉네임을 확인해주세요.');
+      }
+    }
+  }, [executeLogin, connectWebSocket, loadPolls, actions]);
 
   // 앱 초기화
   useEffect(() => {
@@ -95,42 +192,6 @@ function AppContent() {
         });
     }
   }, [actions, connectWebSocket, executeLogin, loadPolls]);
-
-  // 투표 목록 로드
-  const loadPolls = useCallback(async () => {
-    const polls = await executeGetPolls(() => apiService.getPolls());
-    if (polls) {
-      actions.setPolls(polls);
-    }
-  }, [executeGetPolls, actions]);
-
-  // 로그인/회원가입 처리
-  const handleLogin = useCallback(async (nickname: string, isSignUp: boolean = false) => {
-    try {
-      let response;
-      if (isSignUp) {
-        // 회원가입
-        response = await executeLogin(() => apiService.signUp(nickname));
-      } else {
-        // 로그인
-        response = await executeLogin(() => apiService.login(nickname));
-      }
-      
-      if (response) {
-        // WebSocket 연결
-        await connectWebSocket(response.token);
-        // 초기 데이터 로드
-        await loadPolls();
-      }
-    } catch (error) {
-      console.error('로그인/회원가입 실패:', error);
-      if (isSignUp) {
-        actions.setError('회원가입에 실패했습니다. 닉네임이 이미 사용 중일 수 있습니다.');
-      } else {
-        actions.setError('로그인에 실패했습니다. 닉네임을 확인해주세요.');
-      }
-    }
-  }, [executeLogin, connectWebSocket, loadPolls, actions]);
 
   // 투표 생성 처리
   const handleCreatePoll = async (pollData: {
@@ -191,6 +252,14 @@ function AppContent() {
       <div className="min-h-screen bg-slate-900">
         <LoginForm onLogin={handleLogin} />
         {isLoading && <LoadingSpinner />}
+        
+        {/* 디버깅 정보 - 개발 환경에서만 표시 */}
+        {import.meta.env.DEV && import.meta.env.VITE_DEBUG && (
+          <div className="fixed bottom-4 left-4 bg-slate-800 text-slate-300 p-4 rounded-lg max-w-md text-xs z-50">
+            <h4 className="font-bold mb-2">디버깅 정보:</h4>
+            <pre className="whitespace-pre-wrap">{debugInfo}</pre>
+          </div>
+        )}
       </div>
     );
   }

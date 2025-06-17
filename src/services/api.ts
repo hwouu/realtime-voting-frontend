@@ -94,7 +94,7 @@ class APIService {
 
   // 투표 API
   async getPolls(): Promise<APIResponse<Poll[]>> {
-    const response = await this.request<PollListResponse>('/polls');
+    const response = await this.request<PollListResponse>('/polls/');
     if (response.success && response.data) {
       return {
         success: true,
