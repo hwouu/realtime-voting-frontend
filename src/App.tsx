@@ -112,24 +112,22 @@ function AppContent() {
   const loadPolls = useCallback(async () => {
     console.log('Loading polls...');
     try {
-      const polls = await executeGetPolls(() => apiService.getPolls());
-      if (polls) {
-        console.log('Polls loaded:', polls);
-        actions.setPolls(polls);
+      const response = await apiService.getPolls();
+      if (response.success && response.data) {
+        console.log('Polls loaded successfully:', response.data);
+        actions.setPolls(response.data);
+        actions.clearError(); // 오류 취소
       } else {
-        console.log('Failed to load polls - no data returned');
-        // 빈 배열로 설정하여 UI가 정상 동작하도록 함
+        console.log('Failed to load polls:', response.error);
+        actions.setError(response.error || '투표 목록을 불러오는데 실패했습니다.');
         actions.setPolls([]);
-        // 임시 데모 데이터 로드 (선택적)
-        // import { DEMO_POLLS } from '../../utils/constants';
-        // actions.setPolls(DEMO_POLLS);
       }
     } catch (error) {
       console.error('Error loading polls:', error);
-      // 오류 발생 시도 빈 배열로 설정
+      actions.setError('네트워크 오류: 서버에 연결할 수 없습니다.');
       actions.setPolls([]);
     }
-  }, [executeGetPolls, actions]);
+  }, [actions]);
 
   // 로그인/회원가입 처리
   const handleLogin = useCallback(async (nickname: string, isSignUp: boolean = false) => {
@@ -139,23 +137,28 @@ function AppContent() {
       if (isSignUp) {
         // 회원가입
         console.log('Calling signUp API...');
-        response = await executeLogin(() => apiService.signUp(nickname));
+        response = await apiService.signUp(nickname);
       } else {
         // 로그인
         console.log('Calling login API...');
-        response = await executeLogin(() => apiService.login(nickname));
+        response = await apiService.login(nickname);
       }
       
-      if (response) {
+      if (response.success && response.data) {
         console.log('Login/SignUp successful:', response);
+        actions.setCurrentUser(response.data.user);
+        actions.clearError();
+        
         // WebSocket 연결 임시 비활성화 - 인증 문제로 인한 403 오류
         console.log('WebSocket 연결 건너뜀 - HTTP API만 사용');
-        // await connectWebSocket(response.token);
+        // await connectWebSocket(response.data.token);
+        
         // 초기 데이터 로드
         console.log('Loading initial data...');
         await loadPolls();
       } else {
-        console.log('Login/SignUp failed: No response');
+        console.log('Login/SignUp failed:', response.error);
+        actions.setError(response.error || (isSignUp ? '회원가입에 실패했습니다.' : '로그인에 실패했습니다.'));
       }
     } catch (error) {
       console.error('로그인/회원가입 실패:', error);
@@ -165,33 +168,41 @@ function AppContent() {
         actions.setError('로그인에 실패했습니다. 닉네임을 확인해주세요.');
       }
     }
-  }, [executeLogin, connectWebSocket, loadPolls, actions]);
+  }, [loadPolls, actions]);
 
   // 앱 초기화
   useEffect(() => {
     // 저장된 토큰으로 자동 로그인 시도
     const savedToken = localStorage.getItem('auth_token');
     if (savedToken) {
+      console.log('Found saved token, attempting auto-login...');
       apiService.setToken(savedToken);
       
       // 현재 사용자 정보 가져오기
-      executeLogin(() => apiService.getCurrentUser())
-        .then((user) => {
-          if (user) {
-            actions.setCurrentUser(user);
-            // WebSocket 연결
-            connectWebSocket(savedToken);
+      apiService.getCurrentUser()
+        .then((response) => {
+          if (response.success && response.data) {
+            console.log('Auto-login successful:', response.data);
+            actions.setCurrentUser(response.data);
+            // WebSocket 연결 임시 비활성화
+            // connectWebSocket(savedToken);
             // 투표 목록 가져오기
             loadPolls();
+          } else {
+            console.log('Auto-login failed:', response.error);
+            // 토큰이 만료된 경우 제거
+            localStorage.removeItem('auth_token');
+            apiService.setToken('');
           }
         })
-        .catch(() => {
+        .catch((error) => {
+          console.error('Auto-login error:', error);
           // 토큰이 만료된 경우 제거
           localStorage.removeItem('auth_token');
           apiService.setToken('');
         });
     }
-  }, [actions, connectWebSocket, executeLogin, loadPolls]);
+  }, [actions, loadPolls]);
 
   // 투표 생성 처리
   const handleCreatePoll = async (pollData: {
