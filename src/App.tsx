@@ -1,4 +1,6 @@
 // src/App.tsx
+// 상대 경로: /src/App.tsx
+// 메인 애플리케이션 컴포넌트 - 사용자 인증, 투표 목록 관리, 상태 관리 및 라우팅
 import { useState, useEffect } from 'react';
 import type { User, Poll } from './types';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -118,6 +120,19 @@ function App() {
     }
   };
 
+  // 투표 삭제 후 콜백
+  const handlePollDeleted = (pollId: string) => {
+    console.log('투표 삭제됨:', pollId);
+    
+    // polls 상태에서 삭제된 투표 제거
+    setPolls(prevPolls => prevPolls.filter(poll => poll.id !== pollId));
+    
+    // 현재 활성 투표가 삭제된 투표라면 null로 설정
+    if (activePoll && activePoll.id === pollId) {
+      setActivePoll(null);
+    }
+  };
+
   // 새 투표 생성 후 콜백
   const handleCreatePoll = (newPoll: Poll) => {
     console.log('새 투표 생성됨:', newPoll);
@@ -178,6 +193,7 @@ function App() {
                 poll={activePoll}
                 onVote={handleVote}
                 onBack={() => setActivePoll(null)}
+                onPollDeleted={handlePollDeleted}
               />
             )}
           </div>
