@@ -22,18 +22,6 @@ export default function ChatPanel() {
   const { execute: executeGetMessages } = useAPI();
   const { execute: executeSendMessage } = useAPI();
 
-  // 컴포넌트 마운트 시 채팅 메시지 로드
-  useEffect(() => {
-    if (currentUser) {
-      loadChatMessages();
-    }
-  }, [currentUser, loadChatMessages]);
-
-  // 새 메시지가 추가될 때마다 스크롤을 아래로
-  useEffect(() => {
-    scrollToBottom();
-  }, [chatMessages]);
-
   // 채팅 메시지 로드
   const loadChatMessages = useCallback(async () => {
     setIsLoading(true);
@@ -46,6 +34,18 @@ export default function ChatPanel() {
     }
   }, [executeGetMessages]);
 
+  // 컴포넌트 마운트 시 채팅 메시지 로드
+  useEffect(() => {
+    if (currentUser) {
+      loadChatMessages();
+    }
+  }, [currentUser, loadChatMessages]);
+
+  // 새 메시지가 추가될 때마다 스크롤을 아래로
+  useEffect(() => {
+    scrollToBottom();
+  }, [chatMessages]);
+
   // 스크롤을 아래로 이동
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -54,7 +54,7 @@ export default function ChatPanel() {
   // 메시지 전송 처리
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !currentUser || !isConnected) return;
+    if (!newMessage.trim() || !currentUser) return;
 
     const messageText = newMessage.trim();
     setNewMessage('');
@@ -216,10 +216,6 @@ export default function ChatPanel() {
           <div className="text-center text-slate-500 py-2">
             <p className="text-sm">로그인 후 채팅에 참여할 수 있습니다</p>
           </div>
-        ) : !isConnected ? (
-          <div className="text-center text-red-400 py-2">
-            <p className="text-sm">연결이 끊어져 메시지를 보낼 수 없습니다</p>
-          </div>
         ) : (
           <form onSubmit={handleSubmit} className="flex space-x-2">
             <input
@@ -229,11 +225,10 @@ export default function ChatPanel() {
               placeholder="메시지를 입력하세요..."
               className="flex-1 px-3 py-2 bg-slate-700/50 border border-slate-600/30 rounded-lg text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300 text-sm"
               maxLength={500}
-              disabled={!isConnected}
             />
             <button
               type="submit"
-              disabled={!newMessage.trim() || !isConnected}
+              disabled={!newMessage.trim()}
               className="p-2 bg-blue-500 hover:bg-blue-600 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-lg transition-all duration-300 transform hover:scale-105 disabled:transform-none"
             >
               <Send className="w-4 h-4" />
