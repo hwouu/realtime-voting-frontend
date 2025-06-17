@@ -49,10 +49,7 @@ export default function Header({ user, isConnected, onCreatePoll, onLogout }: He
             </div>
 
             {/* Online Users */}
-            <div className="flex items-center space-x-2 text-slate-400">
-              <Users className="w-4 h-4" />
-              <span className="text-sm">3명 온라인</span>
-            </div>
+            {/* 온라인 사용자 수 표시 제거 */}
 
             {/* Create Poll Button */}
             <button
@@ -152,8 +149,7 @@ export default function Header({ user, isConnected, onCreatePoll, onLogout }: He
                 </button>
 
                 <div className="flex items-center justify-center space-x-2 text-slate-400">
-                  <Users className="w-4 h-4" />
-                  <span className="text-sm">3명 온라인</span>
+                  {/* 온라인 사용자 수 표시 제거 */}
                 </div>
               </div>
             </div>
