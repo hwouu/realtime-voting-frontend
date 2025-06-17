@@ -4,7 +4,7 @@
  * 개인 메모 패널 컴포넌트 - 백엔드 API와 통합
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Save, FileText, Clock, Trash2, Edit3 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { useAPI } from '../../hooks/useAPI';
@@ -33,7 +33,7 @@ export default function MemoPanel({ pollId }: MemoPanelProps) {
     if (currentUser && pollId) {
       loadMemos();
     }
-  }, [currentUser, pollId]);
+  }, [currentUser, pollId, loadMemos]);
 
   // 현재 투표의 메모 찾기
   useEffect(() => {
@@ -50,7 +50,7 @@ export default function MemoPanel({ pollId }: MemoPanelProps) {
   }, [userMemos, pollId]);
 
   // 메모 목록 로드
-  const loadMemos = async () => {
+  const loadMemos = useCallback(async () => {
     setIsLoading(true);
     try {
       await executeGetMemos(() => apiService.getMemos(pollId));
@@ -59,7 +59,7 @@ export default function MemoPanel({ pollId }: MemoPanelProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [executeGetMemos, pollId]);
 
   // 메모 저장/업데이트
   const handleSave = async () => {

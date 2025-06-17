@@ -4,7 +4,7 @@
  * 실시간 채팅 패널 컴포넌트 - 백엔드 API와 WebSocket 통합
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, MessageCircle, Loader2 } from 'lucide-react';
 import { useAppStore } from '../../stores/useAppStore';
 import { useWebSocket } from '../../hooks/useWebSocket';
@@ -27,7 +27,7 @@ export default function ChatPanel() {
     if (currentUser) {
       loadChatMessages();
     }
-  }, [currentUser]);
+  }, [currentUser, loadChatMessages]);
 
   // 새 메시지가 추가될 때마다 스크롤을 아래로
   useEffect(() => {
@@ -35,7 +35,7 @@ export default function ChatPanel() {
   }, [chatMessages]);
 
   // 채팅 메시지 로드
-  const loadChatMessages = async () => {
+  const loadChatMessages = useCallback(async () => {
     setIsLoading(true);
     try {
       await executeGetMessages(() => apiService.getChatMessages(50));
@@ -44,7 +44,7 @@ export default function ChatPanel() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [executeGetMessages]);
 
   // 스크롤을 아래로 이동
   const scrollToBottom = () => {
