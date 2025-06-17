@@ -5,7 +5,7 @@
  */
 
 // 기본 응답 타입
-export interface APIResponse<T = any> {
+export interface APIResponse<T = unknown> {
   success: boolean;
   data?: T;
   error?: string;
@@ -52,16 +52,8 @@ export interface PollCreateRequest {
   ends_at?: string; // ISO 날짜 문자열
 }
 
-// VoteOption과 PollOption을 동일하게 사용
-export interface PollOption {
-  id: string;
-  text: string;
-  votes: number;
-  percentage: number;
-}
-
-// 호환성을 위한 별칭
-export type VoteOption = PollOption;
+// 호환성을 위한 별칭 (PollOption은 VoteOption과 동일)
+export type PollOption = VoteOption;
 
 export interface Poll {
   id: string;
@@ -100,7 +92,7 @@ export interface ChatMessage {
   timestamp: string; // 프론트엔드 호환성을 위한 별칭
   user_id?: string;
   username: string;
-  metadata?: Record<string, any>;
+  metadata?: Record<string, unknown>;
 }
 
 export interface ChatMessageCreateRequest {
