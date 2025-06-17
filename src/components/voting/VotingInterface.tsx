@@ -29,7 +29,7 @@ export default function VotingInterface({ poll: initialPoll, onBack }: VotingInt
   async function fetchPoll() {
     try {
       const apiUrl = import.meta.env.VITE_SERVER_API_URL;
-      const res = await fetch(`${apiUrl}`, {
+      const res = await fetch(`${apiUrl}/${poll.id}`, {
         headers: { "ngrok-skip-browser-warning": "true" }
       });
       if (!res.ok) return;
@@ -42,12 +42,23 @@ export default function VotingInterface({ poll: initialPoll, onBack }: VotingInt
         ...prev,
         totalVotes: data.total_votes,
         isActive: data.status === '진행중',
-        options: data.options.map((opt: any, idx: number) => ({
-          id: opt.option_id || opt.id || `opt_${idx}`,
-          text: opt.text || '',
-          votes: opt.votes ?? 0,
-          percentage: opt.percentage ?? 0,
-        })),
+        options: data.options.map((opt: any, idx: number) => {
+          if (typeof opt === 'string') {
+            return {
+              id: opt,
+              text: opt,
+              votes: 0,
+              percentage: 0,
+            };
+          }
+        
+          return {
+            id: opt.option_id || opt.id || `opt_${idx}`,
+            text: opt.text || opt.option_id || '',
+            votes: opt.votes ?? 0,
+            percentage: opt.percentage ?? 0,
+          };
+        })
       }));
     } catch (err) {
       console.error("❌ fetchPoll 에러:", err);
@@ -113,9 +124,9 @@ export default function VotingInterface({ poll: initialPoll, onBack }: VotingInt
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${poll.isActive ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
-            <span className={`text-sm font-medium ${poll.isActive ? 'text-emerald-400' : 'text-red-400'}`}>
-              {poll.isActive ? '진행중' : '종료됨'}
+            <div className={`w-2 h-2 rounded-full ${poll.isActive ? 'bg-emerald-500' : 'bg-green-500'}`}></div>
+            <span className={`text-sm font-medium ${poll.isActive ? 'text-emerald-400' : 'text-green-400'}`}>
+              진행중
             </span>
           </div>
         </div>
@@ -125,6 +136,7 @@ export default function VotingInterface({ poll: initialPoll, onBack }: VotingInt
             {poll.options.map((option, index) => {
               const isSelected = selectedOptionId === option.id;
               const color = POLL_COLORS[index % POLL_COLORS.length];
+              console.log(option.text)
 
               return (
                 <div
