@@ -10,10 +10,12 @@ import type {
   Poll, 
   ChatMessage, 
   UserMemo,
-  SocketEvents 
+  SocketEvents,
+  VoteOption,
+  PollCreateRequest
 } from '../types';
 
-type SocketEventCallback<T = any> = (data: T) => void;
+type SocketEventCallback<T = unknown> = (data: T) => void;
 
 class WebSocketService {
   private socket: Socket | null = null;
@@ -138,7 +140,7 @@ class WebSocketService {
       this.emitToListeners('poll:updated', data);
     });
 
-    this.socket.on('vote:result', (data: { poll_id: string; results: any }) => {
+    this.socket.on('vote:result', (data: { poll_id: string; results: VoteOption[] }) => {
       this.emitToListeners('vote:result', data);
     });
 
@@ -236,7 +238,7 @@ class WebSocketService {
   }
 
   // 투표 생성
-  createPoll(pollData: Omit<Poll, 'id' | 'createdAt' | 'totalVotes'>): void {
+  createPoll(pollData: PollCreateRequest): void {
     this.emit('poll:create', pollData);
   }
 
