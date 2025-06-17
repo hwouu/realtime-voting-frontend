@@ -21,7 +21,8 @@ export default function VotingInterface({ poll, onVote, onBack }: VotingInterfac
     setHasVoted(true);
   };
 
-  const formatTimeAgo = (date: Date) => {
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
     
@@ -53,17 +54,17 @@ export default function VotingInterface({ poll, onVote, onBack }: VotingInterfac
           <div className="flex items-center space-x-6">
             <div className="flex items-center space-x-2 text-slate-400">
               <Users className="w-4 h-4" />
-              <span className="text-sm">{poll.totalVotes}명 참여</span>
+              <span className="text-sm">{poll.total_votes}명 참여</span>
             </div>
             <div className="flex items-center space-x-2 text-slate-400">
               <Clock className="w-4 h-4" />
-              <span className="text-sm">{formatTimeAgo(poll.createdAt)}</span>
+              <span className="text-sm">{formatTimeAgo(poll.created_at)}</span>
             </div>
           </div>
           <div className="flex items-center space-x-2">
-            <div className={`w-2 h-2 rounded-full ${poll.isActive ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
-            <span className={`text-sm font-medium ${poll.isActive ? 'text-emerald-400' : 'text-red-400'}`}>
-              {poll.isActive ? '진행중' : '종료됨'}
+            <div className={`w-2 h-2 rounded-full ${poll.is_active ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
+            <span className={`text-sm font-medium ${poll.is_active ? 'text-emerald-400' : 'text-red-400'}`}>
+              {poll.is_active ? '진행중' : '종료됨'}
             </span>
           </div>
         </div>
