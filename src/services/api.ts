@@ -8,7 +8,6 @@ import type {
   User, 
   Poll, 
   PollCreateRequest, 
-  VoteRequest, 
   ChatMessage, 
   UserMemo,
   APIResponse,
@@ -99,10 +98,14 @@ class APIService {
     if (response.success && response.data) {
       return {
         success: true,
-        data: response.data.polls || []
+        data: response.data.polls || [],
+        message: response.message
       };
     }
-    return response as APIResponse<Poll[]>;
+    return {
+      success: false,
+      error: response.error || 'Failed to fetch polls'
+    };
   }
 
   async getPoll(pollId: string): Promise<APIResponse<Poll>> {
@@ -142,10 +145,14 @@ class APIService {
     if (response.success && response.data) {
       return {
         success: true,
-        data: response.data.messages || []
+        data: response.data.messages || [],
+        message: response.message
       };
     }
-    return response as APIResponse<ChatMessage[]>;
+    return {
+      success: false,
+      error: response.error || 'Failed to fetch chat messages'
+    };
   }
 
   async sendChatMessage(message: string): Promise<APIResponse<ChatMessage>> {
