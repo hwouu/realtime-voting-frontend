@@ -59,7 +59,6 @@ function App() {
             ) : (
               <VotingInterface 
                 poll={activePoll}
-                onVote={handleVote}
                 onBack={() => setActivePoll(null)}
               />
             )}
@@ -74,9 +73,6 @@ function App() {
       {showCreateModal && (
         <CreatePollModal 
           onClose={() => setShowCreateModal(false)}
-          onCreate={(poll) => {
-            console.log('새 투표 생성됨:', poll);
-          }}
         />
       )}
     </div>
