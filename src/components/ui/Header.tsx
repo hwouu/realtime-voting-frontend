@@ -1,15 +1,16 @@
 // src/components/ui/Header.tsx
 import { useState } from 'react';
-import { Plus, Users, Wifi, WifiOff, Vote, Menu, X } from 'lucide-react';
+import { Plus, Users, Wifi, WifiOff, Vote, Menu, X, LogOut } from 'lucide-react';
 import type { User } from '../../types';
 
 interface HeaderProps {
   user: User;
   isConnected: boolean;
   onCreatePoll: () => void;
+  onLogout: () => void;
 }
 
-export default function Header({ user, isConnected, onCreatePoll }: HeaderProps) {
+export default function Header({ user, isConnected, onCreatePoll, onLogout }: HeaderProps) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
@@ -73,6 +74,14 @@ export default function Header({ user, isConnected, onCreatePoll }: HeaderProps)
                 <p className="text-sm font-medium text-slate-200">{user.nickname}</p>
                 <p className="text-xs text-slate-400">온라인</p>
               </div>
+              {/* Logout Button */}
+              <button
+                onClick={onLogout}
+                className="p-2 text-slate-400 hover:text-red-400 hover:bg-red-500/10 rounded-lg transition-all duration-200 group"
+                title="로그아웃"
+              >
+                <LogOut className="w-4 h-4 group-hover:scale-110 transition-transform" />
+              </button>
             </div>
           </div>
 
@@ -129,6 +138,17 @@ export default function Header({ user, isConnected, onCreatePoll }: HeaderProps)
                 >
                   <Plus className="w-4 h-4" />
                   <span>투표 생성</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    onLogout();
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className="w-full bg-red-500/10 hover:bg-red-500/20 text-red-400 hover:text-red-300 font-semibold py-3 px-6 rounded-xl transition-all duration-300 flex items-center justify-center space-x-2 border border-red-500/20 hover:border-red-500/30"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span>로그아웃</span>
                 </button>
 
                 <div className="flex items-center justify-center space-x-2 text-slate-400">
