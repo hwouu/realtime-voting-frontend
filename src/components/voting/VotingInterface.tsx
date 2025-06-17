@@ -6,10 +6,11 @@ import type { Poll } from '../../types';
 
 interface VotingInterfaceProps {
   poll: Poll;
+  onVote?: (pollId: string, optionId: string) => void;
   onBack: () => void;
 }
 
-export default function VotingInterface({ poll: initialPoll, onBack }: VotingInterfaceProps) {
+export default function VotingInterface({ poll: initialPoll, onVote, onBack }: VotingInterfaceProps) {
   const [poll, setPoll] = useState<Poll>(initialPoll);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
@@ -123,6 +124,7 @@ export default function VotingInterface({ poll: initialPoll, onBack }: VotingInt
     setLoading(true);
     setVoteError(null);
     try {
+      // WebSocket으로 투표 전송
       wsRef.current?.send(
         JSON.stringify({
           type: 'cast_vote',
@@ -132,6 +134,12 @@ export default function VotingInterface({ poll: initialPoll, onBack }: VotingInt
           },
         })
       );
+      
+      // 상위 컴포넌트에 투표 알림 (즉시 UI 업데이트용)
+      if (onVote) {
+        onVote(poll.id, selectedOptionId);
+      }
+      
       setHasVoted(true);
     } catch {
       setVoteError('네트워크 오류가 발생했습니다.');
