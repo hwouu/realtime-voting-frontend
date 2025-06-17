@@ -41,6 +41,7 @@ export default function PollListContainer({ onSelectPoll }: PollListContainerPro
           createdAt: new Date(item.created_at),
           optionCount: item.option_count,
           isActive: item.status === '진행중',
+          isPublic: item.is_public,
         }));
 
         setPolls(mapped);

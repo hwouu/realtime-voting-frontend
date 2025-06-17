@@ -1,5 +1,5 @@
 // src/components/voting/PollList.tsx
-import { Clock, Users, BarChart3, Play } from 'lucide-react';
+import { Clock, Users, BarChart3, Play, Lock } from 'lucide-react';
 import type { Poll } from '../../types';
 
 interface PollListProps {
@@ -42,9 +42,16 @@ export default function PollList({ polls, onSelectPoll }: PollListProps) {
             {/* Poll Header */}
             <div className="flex items-start justify-between mb-4">
               <div className="flex-1">
-                <h3 className="text-lg font-semibold text-slate-100 group-hover:text-blue-400 transition-colors">
-                  {poll.title}
-                </h3>
+                <div className="flex items-center space-x-2">
+                  <h3 className="text-lg font-semibold text-slate-100 group-hover:text-blue-400 transition-colors">
+                    {poll.title}
+                  </h3>
+                  {poll.isPublic === false && (
+                    <div className="flex items-center justify-center w-6 h-6 bg-orange-500/20 rounded-lg">
+                      <Lock className="w-3 h-3 text-orange-400" />
+                    </div>
+                  )}
+                </div>
                 <p className="text-sm text-slate-400 mt-1 line-clamp-2">
                   {poll.description}
                 </p>
