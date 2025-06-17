@@ -1,5 +1,6 @@
+// src/components/voting/VotingInterface.tsx
 import { useState, useEffect, useRef } from 'react';
-import { ArrowLeft, Users, Clock, CheckCircle, Circle } from 'lucide-react';
+import { ArrowLeft, Users, Clock, CheckCircle, Circle, Lock, Trash2, Eye, EyeOff } from 'lucide-react';
 import { POLL_COLORS } from '../../utils/constants';
 import type { Poll } from '../../types';
 
@@ -14,23 +15,55 @@ export default function VotingInterface({ poll: initialPoll, onBack }: VotingInt
   const [hasVoted, setHasVoted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [password, setPassword] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [deletePassword, setDeletePassword] = useState('');
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showDeletePassword, setShowDeletePassword] = useState(false);
   const wsRef = useRef<WebSocket | null>(null);
 
   // 최초 로딩 시 서버에서 poll 상세 가져오기
   useEffect(() => {
     async function fetchPoll() {
+      // 비공개 투표이고 비밀번호가 없으면 비밀번호 모달 표시
+      if (initialPoll.isPublic === false && !password) {
+        setShowPasswordModal(true);
+        return;
+      }
+
       const apiUrl = import.meta.env.VITE_SERVER_API_URL;
-      const res = await fetch(`${apiUrl}/${initialPoll.id}/options`, {
-        headers: { "ngrok-skip-browser-warning": "true" }
-      });
-      if (res.ok) {
+      
+      // 백엔드에서 password 파라미터가 필수이므로 모든 경우에 전송
+      // 공개 투표: 더미 값 전송 (백엔드에서 무시)
+      // 비공개 투표: 실제 비밀번호 전송
+      const queryParam = initialPoll.isPublic === false 
+        ? `?password=${encodeURIComponent(password)}`
+        : `?password=public_dummy`; // 공개 투표용 더미 값
+      
+      try {
+        const res = await fetch(`${apiUrl}/${initialPoll.id}/options${queryParam}`, {
+          headers: { "ngrok-skip-browser-warning": "true" }
+        });
+        
+        if (!res.ok) {
+          if (res.status === 401) {
+            setPasswordError('비밀번호가 틀렸습니다.');
+            setShowPasswordModal(true);
+            return;
+          }
+          throw new Error('투표 정보를 불러오지 못했습니다.');
+        }
+
         const data = await res.json();
     
         const mappedOptions = data.options.map((opt: any) => ({
           id:   opt.option,   // opt.option === "라면" 등 원본 문자열
           text: opt.option,
           votes: opt.votes,
-          percentage: (opt.votes / data.total_votes) * 100
+          percentage: data.total_votes > 0 ? (opt.votes / data.total_votes) * 100 : 0
         }));
     
         setPoll({
@@ -39,10 +72,15 @@ export default function VotingInterface({ poll: initialPoll, onBack }: VotingInt
           isActive: true, // 혹은 data.status === '진행중' 등으로 변경 가능
           options: mappedOptions
         });
+        setShowPasswordModal(false);
+        setPasswordError(null);
+      } catch (error) {
+        console.error('투표 정보 불러오기 실패:', error);
+        setVoteError('투표 정보를 불러오지 못했습니다.');
       }
     }
     fetchPoll();
-  }, [initialPoll.id]);
+  }, [initialPoll.id, password]);
 
   useEffect(() => {
     const ws = new WebSocket(import.meta.env.VITE_WS_API_URL);
@@ -57,11 +95,11 @@ export default function VotingInterface({ poll: initialPoll, onBack }: VotingInt
         const counts = data.counts;
 
         setPoll((prev) => {
-          const updatedOptions = prev.options.map((opt) => {
+          const updatedOptions = prev.options?.map((opt) => {
             const count = counts[opt.text] ?? 0;
             const percentage = totalVotes > 0 ? (count / totalVotes) * 100 : 0;
             return { ...opt, votes: count, percentage };
-          });
+          }) || [];
 
           return {
             ...prev,
@@ -102,6 +140,48 @@ export default function VotingInterface({ poll: initialPoll, onBack }: VotingInt
     }
   };
 
+  const handlePasswordSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (password.trim().length < 4) {
+      setPasswordError('비밀번호를 4글자 이상 입력해 주세요.');
+      return;
+    }
+    setPasswordError(null);
+    // useEffect에서 password 변경을 감지하여 자동으로 fetchPoll 실행
+  };
+
+  const handleDeletePoll = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (deletePassword.trim().length < 4) {
+      setDeleteError('비밀번호를 4글자 이상 입력해 주세요.');
+      return;
+    }
+    
+    try {
+      // TODO: 백엔드에 삭제 API가 구현되면 호출
+      const apiUrl = import.meta.env.VITE_SERVER_API_URL;
+      const res = await fetch(`${apiUrl}/${poll.id}`, {
+        method: 'DELETE',
+        headers: {
+          'Content-Type': 'application/json',
+          'ngrok-skip-browser-warning': 'true'
+        },
+        body: JSON.stringify({ password: deletePassword })
+      });
+      
+      if (res.ok) {
+        alert('투표가 성공적으로 삭제되었습니다.');
+        onBack();
+      } else {
+        setDeleteError('삭제에 실패했습니다. 비밀번호를 확인해 주세요.');
+      }
+    } catch (error) {
+      // 아직 API가 구현되지 않은 경우를 위한 임시 처리
+      alert('투표 삭제 기능은 현재 개발 중입니다.');
+      setShowDeleteModal(false);
+    }
+  };
+
   const formatTimeAgo = (date: Date) => {
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
@@ -111,18 +191,102 @@ export default function VotingInterface({ poll: initialPoll, onBack }: VotingInt
     return `${Math.floor(diffInSeconds / 86400)}일 전`;
   };
 
-  return (
-    <div className="space-y-6">
-      <div className="flex items-center space-x-4">
-        <button onClick={onBack} className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
-          <ArrowLeft className="w-5 h-5 text-slate-400" />
-        </button>
-        <div className="flex-1">
-          <h2 className="text-2xl font-bold text-slate-100">{poll.title}</h2>
-          <p className="text-slate-400 mt-1">{poll.description}</p>
+  // 비밀번호 입력 모달이 표시되어야 하는 경우
+  if (showPasswordModal) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <div className="card-gradient bg-slate-800/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-700/50 w-full max-w-sm">
+          <div className="p-6">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 bg-orange-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Lock className="w-8 h-8 text-orange-400" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-100">비공개 투표</h2>
+              <p className="text-slate-400 mt-2">이 투표를 보려면 비밀번호가 필요합니다.</p>
+            </div>
+
+            <form onSubmit={handlePasswordSubmit}>
+              <div className="mb-4">
+                <label htmlFor="password" className="block text-sm font-semibold text-slate-300 mb-2">
+                  비밀번호
+                </label>
+                <div className="relative">
+                  <input
+                    id="password"
+                    type={showPassword ? "text" : "password"}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="비밀번호를 입력하세요"
+                    className="w-full px-4 py-3 pr-12 bg-slate-800/80 border border-slate-600/50 rounded-xl text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:border-orange-500 transition-all duration-300"
+                    required
+                    autoFocus
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+                {passwordError && (
+                  <div className="mt-2 text-red-400 text-sm">{passwordError}</div>
+                )}
+              </div>
+
+              <div className="flex space-x-3">
+                <button
+                  type="button"
+                  onClick={onBack}
+                  className="flex-1 px-4 py-3 text-slate-400 hover:text-slate-300 hover:bg-slate-700 rounded-xl transition-all duration-300"
+                >
+                  돌아가기
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105"
+                >
+                  확인
+                </button>
+              </div>
+            </form>
+          </div>
         </div>
       </div>
+    );
+  }
 
+  return (
+    <div className="space-y-6">
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <button onClick={onBack} className="p-2 hover:bg-slate-800 rounded-lg transition-colors">
+            <ArrowLeft className="w-5 h-5 text-slate-400" />
+          </button>
+          <div className="flex-1">
+            <div className="flex items-center space-x-2">
+              <h2 className="text-2xl font-bold text-slate-100">{poll.title}</h2>
+              {poll.isPublic === false && (
+                <div className="flex items-center justify-center w-6 h-6 bg-orange-500/20 rounded-lg">
+                  <Lock className="w-3 h-3 text-orange-400" />
+                </div>
+              )}
+            </div>
+            <p className="text-slate-400 mt-1">{poll.description}</p>
+          </div>
+        </div>
+        {/* 삭제 버튼 */}
+        <button
+          onClick={() => setShowDeleteModal(true)}
+          className="p-2 text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+          title="투표 삭제"
+        >
+          <Trash2 className="w-5 h-5" />
+        </button>
+      </div>
+
+      {/* Main Content */}
       <div className="card-gradient bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-700/50 p-6">
         <div className="flex items-center justify-between mb-6">
           <div className="flex items-center space-x-6">
@@ -142,7 +306,7 @@ export default function VotingInterface({ poll: initialPoll, onBack }: VotingInt
         </div>
 
         <div className="space-y-4">
-          {poll.options.map((option, index) => {
+          {poll.options?.map((option, index) => {
             const isSelected = selectedOptionId === option.id;
             const color = POLL_COLORS[index % POLL_COLORS.length];
 
@@ -227,6 +391,75 @@ export default function VotingInterface({ poll: initialPoll, onBack }: VotingInt
         )}
       </div>
 
+      {/* 삭제 모달 */}
+      {showDeleteModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="card-gradient bg-slate-800/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-700/50 w-full max-w-sm">
+            <div className="p-6">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-red-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <Trash2 className="w-8 h-8 text-red-400" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-100">투표 삭제</h2>
+                <p className="text-slate-400 mt-2">정말로 이 투표를 삭제하시겠습니까?</p>
+                <p className="text-red-400 text-sm mt-1">삭제된 투표는 복구할 수 없습니다.</p>
+              </div>
+
+              <form onSubmit={handleDeletePoll}>
+                <div className="mb-4">
+                  <label htmlFor="deletePassword" className="block text-sm font-semibold text-slate-300 mb-2">
+                    비밀번호 확인
+                  </label>
+                  <div className="relative">
+                    <input
+                      id="deletePassword"
+                      type={showDeletePassword ? "text" : "password"}
+                      value={deletePassword}
+                      onChange={(e) => setDeletePassword(e.target.value)}
+                      placeholder="투표 생성 시 설정한 비밀번호"
+                      className="w-full px-4 py-3 pr-12 bg-slate-800/80 border border-slate-600/50 rounded-xl text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all duration-300"
+                      required
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowDeletePassword(!showDeletePassword)}
+                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-slate-400 hover:text-slate-300"
+                    >
+                      {showDeletePassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                    </button>
+                  </div>
+                  {deleteError && (
+                    <div className="mt-2 text-red-400 text-sm">{deleteError}</div>
+                  )}
+                </div>
+
+                <div className="flex space-x-3">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setShowDeleteModal(false);
+                      setDeletePassword('');
+                      setDeleteError(null);
+                    }}
+                    className="flex-1 px-4 py-3 text-slate-400 hover:text-slate-300 hover:bg-slate-700 rounded-xl transition-all duration-300"
+                  >
+                    취소
+                  </button>
+                  <button
+                    type="submit"
+                    className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105"
+                  >
+                    삭제
+                  </button>
+                </div>
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 실시간 업데이트 표시 */}
       <div className="flex items-center justify-center space-x-2 text-slate-500">
         <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse"></div>
         <span className="text-sm">실시간 업데이트 중</span>
