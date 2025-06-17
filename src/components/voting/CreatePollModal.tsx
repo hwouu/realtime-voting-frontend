@@ -3,11 +3,14 @@ import { useState } from 'react';
 import { X, Plus, Trash2, Lock, Unlock } from 'lucide-react';
 import { MAX_POLL_OPTIONS } from '../../utils/constants';
 
+import type { Poll } from '../../types';
+
 interface CreatePollModalProps {
   onClose: () => void;
+  onPollCreated: (poll: Poll) => void;
 }
 
-export default function CreatePollModal({ onClose }: CreatePollModalProps) {
+export default function CreatePollModal({ onClose, onPollCreated }: CreatePollModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [options, setOptions] = useState(['', '']);
@@ -71,8 +74,23 @@ export default function CreatePollModal({ onClose }: CreatePollModalProps) {
         return;
       }
 
-      // 성공 시 모달 닫기
-      onClose();
+      const data = await response.json();
+      console.log('새 투표 생성 성공:', data);
+
+      // 새로 생성된 투표 데이터를 Poll 타입으로 변환
+      const newPoll: Poll = {
+        id: data.vote_id,
+        title: data.title,
+        description: data.description,
+        totalVotes: 0, // 새로 생성된 투표는 초기에 0표
+        createdAt: new Date(data.created_at),
+        optionCount: validOptions.length,
+        isActive: true, // 새로 생성된 투표는 활성 상태
+        isPublic: data.is_public,
+      };
+
+      // 상위 컴포넌트에 새 투표 데이터 전달
+      onPollCreated(newPoll);
     } catch (error) {
       setError('네트워크 오류가 발생했습니다.');
     } finally {
