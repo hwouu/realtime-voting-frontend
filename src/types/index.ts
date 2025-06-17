@@ -7,7 +7,7 @@ export interface User {
   joinedAt: Date;
 }
 
-export interface VoteOption {
+export interface PollOption {
   id: string;
   text: string;
   votes: number;
@@ -15,14 +15,13 @@ export interface VoteOption {
 }
 
 export interface Poll {
-  id: string;
+  id: string;             // vote_id
   title: string;
   description: string;
-  options: VoteOption[];
-  createdBy: string;
-  createdAt: Date;
-  isActive: boolean;
-  totalVotes: number;
+  totalVotes: number;     // total_votes
+  createdAt: Date;        // created_at
+  optionCount: number;    // option_count
+  isActive: boolean;      // status === '진행중'
 }
 
 export interface Vote {
@@ -63,7 +62,7 @@ export interface SocketEvents {
   'user:left': { userId: string };
   'poll:created': Poll;
   'poll:updated': Poll;
-  'vote:result': { pollId: string; results: VoteOption[] };
+  'vote:result': { pollId: string; results: PollOption[] };
   'chat:message_received': ChatMessage;
   'users:online': User[];
   'memo:saved': UserMemo;

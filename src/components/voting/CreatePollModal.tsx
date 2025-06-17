@@ -5,13 +5,14 @@ import { MAX_POLL_OPTIONS } from '../../utils/constants';
 
 interface CreatePollModalProps {
   onClose: () => void;
-  onCreate: (poll: { title: string; description: string; options: string[] }) => void;
 }
 
-export default function CreatePollModal({ onClose, onCreate }: CreatePollModalProps) {
+export default function CreatePollModal({ onClose }: CreatePollModalProps) {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [options, setOptions] = useState(['', '']);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const addOption = () => {
     if (options.length < MAX_POLL_OPTIONS) {
@@ -31,19 +32,43 @@ export default function CreatePollModal({ onClose, onCreate }: CreatePollModalPr
     setOptions(newOptions);
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     const validOptions = options.filter(opt => opt.trim() !== '');
     if (title.trim() === '' || validOptions.length < 2) {
+      setError('투표 제목과 2개 이상의 선택지를 입력해 주세요.');
       return;
     }
 
-    onCreate({
-      title: title.trim(),
-      description: description.trim(),
-      options: validOptions,
-    });
+    setLoading(true);
+    setError(null);
+    try {
+      const apiUrl = import.meta.env.VITE_SERVER_API_URL;
+      console.log(apiUrl);
+      const response = await fetch(`${apiUrl}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: title.trim(),
+          description: description.trim(),
+          options: validOptions,
+        }),
+      });
+
+      if (!response.ok) {
+        console.log(response);
+        setError('투표 생성에 실패했습니다.');
+        return;
+      }
+
+      // 성공 시 모달 닫기
+      onClose();
+    } catch (error) {
+      setError('네트워크 오류가 발생했습니다.');
+    } finally {
+      setLoading(false);
+    }
   };
 
   const canSubmit = title.trim() !== '' && options.filter(opt => opt.trim() !== '').length >= 2;
@@ -149,21 +174,27 @@ export default function CreatePollModal({ onClose, onCreate }: CreatePollModalPr
             </div>
           </div>
 
+          {/* 에러 메시지 */}
+          {error && (
+            <div className="mt-4 text-red-400 text-sm">{error}</div>
+          )}
+
           {/* Footer */}
           <div className="flex items-center justify-end space-x-3 mt-8 pt-6 border-t border-slate-700/50">
             <button
               type="button"
               onClick={onClose}
               className="px-6 py-3 text-slate-400 hover:text-slate-300 hover:bg-slate-700 rounded-xl transition-all duration-300"
+              disabled={loading}
             >
               취소
             </button>
             <button
               type="submit"
-              disabled={!canSubmit}
+              disabled={!canSubmit || loading}
               className="btn-primary bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
             >
-              투표 생성
+              {loading ? '생성 중...' : '투표 생성'}
             </button>
           </div>
         </form>

@@ -11,18 +11,11 @@ export default function PollList({ polls, onSelectPoll }: PollListProps) {
   const formatTimeAgo = (date: Date) => {
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
-    
+
     if (diffInSeconds < 60) return '방금 전';
     if (diffInSeconds < 3600) return `${Math.floor(diffInSeconds / 60)}분 전`;
     if (diffInSeconds < 86400) return `${Math.floor(diffInSeconds / 3600)}시간 전`;
     return `${Math.floor(diffInSeconds / 86400)}일 전`;
-  };
-
-  const getTopOption = (poll: Poll) => {
-    if (poll.totalVotes === 0) return null;
-    return poll.options.reduce((prev, current) => 
-      prev.votes > current.votes ? prev : current
-    );
   };
 
   return (
@@ -40,82 +33,60 @@ export default function PollList({ polls, onSelectPoll }: PollListProps) {
 
       {/* Poll Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {polls.map((poll) => {
-          const topOption = getTopOption(poll);
-          return (
-            <div
-              key={poll.id}
-              onClick={() => onSelectPoll(poll)}
-              className="card-gradient bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-700/50 p-6 transition-all duration-300 hover:shadow-2xl hover:border-blue-500/30 cursor-pointer transform hover:scale-105 group"
-            >
-              {/* Poll Header */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-slate-100 group-hover:text-blue-400 transition-colors">
-                    {poll.title}
-                  </h3>
-                  <p className="text-sm text-slate-400 mt-1 line-clamp-2">
-                    {poll.description}
-                  </p>
-                </div>
-                <div className="flex items-center justify-center w-10 h-10 bg-blue-500/20 rounded-xl ml-4">
-                  <BarChart3 className="w-5 h-5 text-blue-400" />
-                </div>
+        {polls.map((poll) => (
+          <div
+            key={poll.id}
+            onClick={() => onSelectPoll(poll)}
+            className="card-gradient bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-700/50 p-6 transition-all duration-300 hover:shadow-2xl hover:border-blue-500/30 cursor-pointer transform hover:scale-105 group"
+          >
+            {/* Poll Header */}
+            <div className="flex items-start justify-between mb-4">
+              <div className="flex-1">
+                <h3 className="text-lg font-semibold text-slate-100 group-hover:text-blue-400 transition-colors">
+                  {poll.title}
+                </h3>
+                <p className="text-sm text-slate-400 mt-1 line-clamp-2">
+                  {poll.description}
+                </p>
               </div>
-
-              {/* Poll Stats */}
-              <div className="flex items-center space-x-4 mb-4">
-                <div className="flex items-center space-x-1 text-slate-400">
-                  <Users className="w-4 h-4" />
-                  <span className="text-sm">{poll.totalVotes}표</span>
-                </div>
-                <div className="flex items-center space-x-1 text-slate-400">
-                  <Clock className="w-4 h-4" />
-                  <span className="text-sm">{formatTimeAgo(poll.createdAt)}</span>
-                </div>
-                <div className="flex items-center space-x-1">
-                  <div className={`w-2 h-2 rounded-full ${poll.isActive ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
-                  <span className={`text-sm ${poll.isActive ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {poll.isActive ? '진행중' : '종료됨'}
-                  </span>
-                </div>
+              <div className="flex items-center justify-center w-10 h-10 bg-blue-500/20 rounded-xl ml-4">
+                <BarChart3 className="w-5 h-5 text-blue-400" />
               </div>
-
-              {/* Top Option Preview */}
-              {topOption && (
-                <div className="mb-4">
-                  <div className="text-xs text-slate-500 mb-2">현재 1위</div>
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-slate-300 font-medium">{topOption.text}</span>
-                    <span className="text-sm text-blue-400 font-semibold">
-                      {topOption.percentage.toFixed(1)}%
-                    </span>
-                  </div>
-                  <div className="mt-2 w-full bg-slate-700/50 rounded-full h-2">
-                    <div
-                      className="h-full bg-gradient-to-r from-blue-500 to-purple-500 rounded-full transition-all duration-500"
-                      style={{ width: `${topOption.percentage}%` }}
-                    ></div>
-                  </div>
-                </div>
-              )}
-
-              {/* Options Count */}
-              <div className="flex items-center justify-between">
-                <span className="text-xs text-slate-500">
-                  {poll.options.length}개의 선택지
-                </span>
-                <div className="flex items-center space-x-1 text-blue-400 group-hover:text-blue-300 transition-colors">
-                  <Play className="w-3 h-3" />
-                  <span className="text-xs font-medium">참여하기</span>
-                </div>
-              </div>
-
-              {/* Hover Effect */}
-              <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
             </div>
-          );
-        })}
+
+            {/* Poll Stats */}
+            <div className="flex items-center space-x-4 mb-4">
+              <div className="flex items-center space-x-1 text-slate-400">
+                <Users className="w-4 h-4" />
+                <span className="text-sm">{poll.totalVotes}표</span>
+              </div>
+              <div className="flex items-center space-x-1 text-slate-400">
+                <Clock className="w-4 h-4" />
+                <span className="text-sm">{formatTimeAgo(poll.createdAt)}</span>
+              </div>
+              <div className="flex items-center space-x-1">
+                <div className={`w-2 h-2 rounded-full ${poll.isActive ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
+                <span className={`text-sm ${poll.isActive ? 'text-emerald-400' : 'text-red-400'}`}>
+                  {poll.isActive ? '진행중' : '종료됨'}
+                </span>
+              </div>
+            </div>
+
+            {/* Options Count */}
+            <div className="flex items-center justify-between">
+              <span className="text-xs text-slate-500">
+                {poll.optionCount}개의 선택지
+              </span>
+              <div className="flex items-center space-x-1 text-blue-400 group-hover:text-blue-300 transition-colors">
+                <Play className="w-3 h-3" />
+                <span className="text-xs font-medium">참여하기</span>
+              </div>
+            </div>
+
+            {/* Hover Effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-blue-500/5 to-purple-500/5 rounded-2xl opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+          </div>
+        ))}
       </div>
 
       {/* Empty State */}
