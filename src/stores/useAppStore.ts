@@ -10,8 +10,7 @@ import type {
   User, 
   Poll, 
   ChatMessage, 
-  UserMemo,
-  LoadingState 
+  UserMemo
 } from '../types';
 
 // 액션 타입 정의
