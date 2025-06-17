@@ -7,7 +7,7 @@
 import { useState, useCallback } from 'react';
 import { apiService } from '../services/api';
 import { useAppStore } from '../stores/useAppStore';
-import type { APIResponse } from '../types';
+import type { APIResponse, User, Poll } from '../types';
 
 interface UseAPIOptions<T> {
   onSuccess?: (data: T) => void;
@@ -15,7 +15,7 @@ interface UseAPIOptions<T> {
   showGlobalError?: boolean;
 }
 
-export function useAPI<T = any>(options: UseAPIOptions<T> = {}) {
+export function useAPI<T = unknown>(options: UseAPIOptions<T> = {}) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { actions } = useAppStore();
@@ -80,8 +80,8 @@ export function useAPI<T = any>(options: UseAPIOptions<T> = {}) {
 export function useLogin() {
   const { actions } = useAppStore();
   
-  return useAPI({
-    onSuccess: (data: { user: any; token: string }) => {
+  return useAPI<{ user: User; token: string }>({
+    onSuccess: (data: { user: User; token: string }) => {
       actions.setCurrentUser(data.user);
       apiService.setToken(data.token);
       localStorage.setItem('auth_token', data.token);
@@ -112,8 +112,8 @@ export function useCreatePoll() {
 export function useVote() {
   const { actions } = useAppStore();
   
-  return useAPI({
-    onSuccess: (data: { poll: any }) => {
+  return useAPI<{ poll: Poll }>({
+    onSuccess: (data: { poll: Poll }) => {
       actions.updatePoll(data.poll);
     },
   });

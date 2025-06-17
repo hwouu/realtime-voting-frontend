@@ -6,7 +6,7 @@
 import { useEffect, useRef } from 'react';
 import { wsService } from '../services/websocket';
 import { useAppStore } from '../stores/useAppStore';
-import type { User, Poll, ChatMessage, UserMemo } from '../types';
+import type { User, Poll, ChatMessage, UserMemo, VoteOption } from '../types';
 
 export function useWebSocket() {
   const { currentUser, actions } = useAppStore();
@@ -63,7 +63,7 @@ export function useWebSocket() {
       actions.updatePoll(poll);
     };
 
-    const handleVoteResult = (data: { poll_id: string; results: any }) => {
+    const handleVoteResult = (data: { pollId: string; results: VoteOption[] }) => {
       // 투표 결과 업데이트
       // TODO: 투표 결과 데이터 구조에 맞게 처리
       console.log('Vote result received:', data);
@@ -163,6 +163,8 @@ export function useWebSocket() {
         content,
         user_id: currentUser.id,
         poll_id: pollId,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
       });
     } else {
       actions.setError('연결이 끊어져 메모를 저장할 수 없습니다.');
