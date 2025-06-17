@@ -20,26 +20,24 @@ export default function VotingInterface({ poll: initialPoll, onBack }: VotingInt
   useEffect(() => {
     async function fetchPoll() {
       const apiUrl = import.meta.env.VITE_SERVER_API_URL;
-      const res = await fetch(`${apiUrl}/${initialPoll.id}`, {
+      const res = await fetch(`${apiUrl}/${initialPoll.id}/options`, {
         headers: { "ngrok-skip-browser-warning": "true" }
       });
       if (res.ok) {
         const data = await res.json();
-        const mappedOptions = (data.options || []).map((opt: any, idx: number) =>
-          typeof opt === 'string'
-            ? { id: opt, text: opt, votes: 0, percentage: 0 }
-            : {
-                id: opt.option_id || opt.id || `opt_${idx}`,
-                text: opt.text || opt.option_id || '',
-                votes: opt.votes ?? 0,
-                percentage: opt.percentage ?? 0,
-              }
-        );
+    
+        const mappedOptions = data.options.map((opt: any) => ({
+          id:   opt.option,   // opt.option === "라면" 등 원본 문자열
+          text: opt.option,
+          votes: opt.votes,
+          percentage: (opt.votes / data.total_votes) * 100
+        }));
+    
         setPoll({
           ...initialPoll,
           totalVotes: data.total_votes,
-          isActive: data.status === '진행중',
-          options: mappedOptions,
+          isActive: true, // 혹은 data.status === '진행중' 등으로 변경 가능
+          options: mappedOptions
         });
       }
     }
