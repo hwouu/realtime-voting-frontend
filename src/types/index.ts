@@ -22,6 +22,8 @@ export interface Poll {
   createdAt: Date;        // created_at
   optionCount: number;    // option_count
   isActive: boolean;      // status === '진행중'
+  isPublic?: boolean;     // 공개 여부
+  options?: PollOption[];  // 투표 옵션들
 }
 
 export interface Vote {
