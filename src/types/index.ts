@@ -23,9 +23,6 @@ export interface User {
   bio?: string;
 }
 
-<<<<<<< Updated upstream
-export interface VoteOption {
-=======
 export interface UserCreateRequest {
   nickname: string;
 }
@@ -41,38 +38,36 @@ export interface UserLoginResponse {
 }
 
 // 투표 관련 타입
-export interface PollOption {
->>>>>>> Stashed changes
+export interface VoteOption {
   id: string;
   text: string;
   votes: number;
   percentage: number;
 }
 
-<<<<<<< Updated upstream
-export interface Poll {
-  id: string;
-  title: string;
-  description: string;
-  options: VoteOption[];
-  createdBy: string;
-  createdAt: Date;
-  isActive: boolean;
-  totalVotes: number;
-=======
 export interface PollCreateRequest {
   title: string;
   description?: string;
   options: string[];
   ends_at?: string; // ISO 날짜 문자열
->>>>>>> Stashed changes
 }
+
+// VoteOption과 PollOption을 동일하게 사용
+export interface PollOption {
+  id: string;
+  text: string;
+  votes: number;
+  percentage: number;
+}
+
+// 호환성을 위한 별칭
+export type VoteOption = PollOption;
 
 export interface Poll {
   id: string;
   title: string;
   description?: string;
-  options: PollOption[];
+  options: VoteOption[];
   created_by: string;
   created_at: string; // ISO 날짜 문자열
   ends_at?: string;
@@ -152,11 +147,7 @@ export interface SocketEvents {
   'user:left': { userId: string };
   'poll:created': Poll;
   'poll:updated': Poll;
-<<<<<<< Updated upstream
   'vote:result': { pollId: string; results: VoteOption[] };
-=======
-  'vote:result': { poll_id: string; results: PollOption[] };
->>>>>>> Stashed changes
   'chat:message_received': ChatMessage;
   'users:online': User[];
   'memo:saved': UserMemo;
