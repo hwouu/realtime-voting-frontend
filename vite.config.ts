@@ -7,11 +7,19 @@ export default defineConfig({
   server: {
     port: 5173,
     strictPort: true,
+    host: true,
   },
   define: {
     __PWA__: false,
   },
   optimizeDeps: {
     include: ['tailwindcss'],
+  },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: undefined,
+      },
+    },
   },
 })
