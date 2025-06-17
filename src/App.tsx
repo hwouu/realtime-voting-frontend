@@ -104,15 +104,31 @@ function AppContent() {
     }
   };
 
-  // 로그인 처리
-  const handleLogin = async (nickname: string) => {
-    const response = await executeLogin(() => apiService.login(nickname));
-    
-    if (response) {
-      // WebSocket 연결
-      await connectWebSocket(response.token);
-      // 초기 데이터 로드
-      await loadPolls();
+  // 로그인/회원가입 처리
+  const handleLogin = async (nickname: string, isSignUp: boolean = false) => {
+    try {
+      let response;
+      if (isSignUp) {
+        // 회원가입
+        response = await executeLogin(() => apiService.signUp(nickname));
+      } else {
+        // 로그인
+        response = await executeLogin(() => apiService.login(nickname));
+      }
+      
+      if (response) {
+        // WebSocket 연결
+        await connectWebSocket(response.token);
+        // 초기 데이터 로드
+        await loadPolls();
+      }
+    } catch (error) {
+      console.error('로그인/회원가입 실패:', error);
+      if (isSignUp) {
+        actions.setError('회원가입에 실패했습니다. 닉네임이 이미 사용 중일 수 있습니다.');
+      } else {
+        actions.setError('로그인에 실패했습니다. 닉네임을 확인해주세요.');
+      }
     }
   };
 

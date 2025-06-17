@@ -82,6 +82,13 @@ class APIService {
     });
   }
 
+  async signUp(nickname: string): Promise<APIResponse<{ user: User; token: string }>> {
+    return this.request<{ user: User; token: string }>('/users/register', {
+      method: 'POST',
+      body: JSON.stringify({ nickname }),
+    });
+  }
+
   async getCurrentUser(): Promise<APIResponse<User>> {
     return this.request<User>('/users/me');
   }

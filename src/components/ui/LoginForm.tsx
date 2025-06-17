@@ -3,22 +3,26 @@ import { useState } from 'react';
 import { User, Vote } from 'lucide-react';
 
 interface LoginFormProps {
-  onLogin: (nickname: string) => void;
+  onLogin: (nickname: string, isSignUp?: boolean) => void;
 }
 
 export default function LoginForm({ onLogin }: LoginFormProps) {
   const [nickname, setNickname] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isSignUpMode, setIsSignUpMode] = useState(true); // 기본값을 회원가입으로
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!nickname.trim()) return;
     
     setIsLoading(true);
-    // 실제 서버 연결 시뮬레이션
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    onLogin(nickname.trim());
-    setIsLoading(false);
+    try {
+      await onLogin(nickname.trim(), isSignUpMode);
+    } catch (error) {
+      console.error('로그인/회원가입 실패:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -43,8 +47,34 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
           </p>
         </div>
 
-        {/* Login Card */}
+        {/* Login/SignUp Card */}
         <div className="card-gradient bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-700/50 p-6 transition-all duration-300">
+          {/* 모드 전환 탭 */}
+          <div className="flex rounded-lg bg-slate-700/30 p-1 mb-6">
+            <button
+              type="button"
+              onClick={() => setIsSignUpMode(true)}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
+                isSignUpMode
+                  ? 'bg-blue-500 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-300'
+              }`}
+            >
+              회원가입
+            </button>
+            <button
+              type="button"
+              onClick={() => setIsSignUpMode(false)}
+              className={`flex-1 py-2 px-4 rounded-md text-sm font-medium transition-all duration-200 ${
+                !isSignUpMode
+                  ? 'bg-blue-500 text-white shadow-md'
+                  : 'text-slate-400 hover:text-slate-300'
+              }`}
+            >
+              로그인
+            </button>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <label htmlFor="nickname" className="block text-sm font-semibold text-slate-300 mb-2">
@@ -57,14 +87,20 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
                   type="text"
                   value={nickname}
                   onChange={(e) => setNickname(e.target.value)}
-                  placeholder="사용할 닉네임을 입력하세요"
+                  placeholder={
+                    isSignUpMode 
+                      ? "사용할 닉네임을 입력하세요" 
+                      : "등록된 닉네임을 입력하세요"
+                  }
                   className="input-field-dark w-full px-4 py-3 pl-12 bg-slate-800/80 border border-slate-600/50 rounded-xl text-slate-100 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all duration-300"
                   maxLength={20}
                   required
                 />
               </div>
               <p className="text-xs text-slate-500 mt-1">
-                최대 20자까지 입력 가능합니다
+                {isSignUpMode 
+                  ? "최대 20자까지 입력 가능합니다" 
+                  : "기존에 등록한 닉네임을 입력하세요"}
               </p>
             </div>
 
@@ -76,16 +112,45 @@ export default function LoginForm({ onLogin }: LoginFormProps) {
               {isLoading ? (
                 <div className="flex items-center justify-center">
                   <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin mr-2"></div>
-                  연결 중...
+                  {isSignUpMode ? '가입 중...' : '로그인 중...'}
                 </div>
               ) : (
                 <>
-                  입장하기
+                  {isSignUpMode ? '회원가입하고 입장' : '로그인하고 입장'}
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent transform -skew-x-12 translate-x-full group-hover:translate-x-[-200%] transition-transform duration-700"></div>
                 </>
               )}
             </button>
           </form>
+
+          {/* 모드 변경 안내 */}
+          <div className="mt-4 text-center">
+            <p className="text-xs text-slate-500">
+              {isSignUpMode ? (
+                <>
+                  이미 계정이 있으신가요?{' '}
+                  <button
+                    type="button"
+                    onClick={() => setIsSignUpMode(false)}
+                    className="text-blue-400 hover:text-blue-300 underline"
+                  >
+                    로그인하기
+                  </button>
+                </>
+              ) : (
+                <>
+                  처음 방문이신가요?{' '}
+                  <button
+                    type="button"
+                    onClick={() => setIsSignUpMode(true)}
+                    className="text-blue-400 hover:text-blue-300 underline"
+                  >
+                    회원가입하기
+                  </button>
+                </>
+              )}
+            </p>
+          </div>
 
           {/* Features */}
           <div className="mt-8 pt-6 border-t border-slate-700/50">
