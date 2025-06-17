@@ -48,15 +48,27 @@ class APIService {
     }
 
     try {
+      console.log(`API Request: ${options.method || 'GET'} ${url}`);
+      
       const response = await fetch(url, {
         ...options,
         headers,
       });
 
-      const data = await response.json();
+      console.log(`API Response: ${response.status} ${response.statusText}`);
+      
+      let data;
+      try {
+        data = await response.json();
+      } catch (parseError) {
+        console.error('Failed to parse JSON response:', parseError);
+        throw new Error(`Invalid JSON response from server`);
+      }
 
       if (!response.ok) {
-        throw new Error(data.error || `HTTP ${response.status}: ${response.statusText}`);
+        const errorMessage = data.detail || data.error || `HTTP ${response.status}: ${response.statusText}`;
+        console.error(`API Error [${endpoint}]:`, errorMessage);
+        throw new Error(errorMessage);
       }
 
       return {
@@ -75,37 +87,135 @@ class APIService {
 
   // 인증 API
   async login(nickname: string): Promise<APIResponse<{ user: User; token: string }>> {
-    return this.request<{ user: User; token: string }>('/users/login', {
+    const response = await this.request<{
+      success: boolean;
+      user: User;
+      access_token: string;
+      token_type: string;
+      expires_in: number;
+    }>('/users/login', {
       method: 'POST',
       body: JSON.stringify({ nickname }),
     });
+    
+    if (response.success && response.data) {
+      // 로그인 성공 시 토큰 저장
+      const token = response.data.access_token;
+      this.setToken(token);
+      localStorage.setItem('auth_token', token);
+      
+      return {
+        success: true,
+        data: {
+          user: response.data.user,
+          token: token
+        },
+        message: response.message
+      };
+    }
+    
+    return {
+      success: false,
+      error: response.error || 'Login failed'
+    };
   }
 
   async signUp(nickname: string): Promise<APIResponse<{ user: User; token: string }>> {
-    return this.request<{ user: User; token: string }>('/users/register', {
+    const response = await this.request<{
+      success: boolean;
+      user: User;
+      access_token: string;
+      token_type: string;
+      expires_in: number;
+    }>('/users/register', {
       method: 'POST',
       body: JSON.stringify({ nickname }),
     });
+    
+    if (response.success && response.data) {
+      // 회원가입 성공 시 토큰 저장
+      const token = response.data.access_token;
+      this.setToken(token);
+      localStorage.setItem('auth_token', token);
+      
+      return {
+        success: true,
+        data: {
+          user: response.data.user,
+          token: token
+        },
+        message: response.message
+      };
+    }
+    
+    return {
+      success: false,
+      error: response.error || 'Signup failed'
+    };
   }
 
   async getCurrentUser(): Promise<APIResponse<User>> {
-    return this.request<User>('/users/me');
+    const response = await this.request<{
+      id: string;
+      nickname: string;
+      is_online: boolean;
+      joined_at: string;
+      last_seen?: string;
+      avatar_url?: string;
+      bio?: string;
+      total_polls_created: number;
+      total_votes_cast: number;
+      total_messages_sent: number;
+      total_memos_written: number;
+    }>('/users/me');
+    
+    if (response.success && response.data) {
+      // UserProfileResponse를 User 타입으로 변환
+      const user: User = {
+        id: response.data.id,
+        nickname: response.data.nickname,
+        is_online: response.data.is_online,
+        joined_at: response.data.joined_at,
+        last_seen: response.data.last_seen,
+        avatar_url: response.data.avatar_url,
+        bio: response.data.bio
+      };
+      
+      return {
+        success: true,
+        data: user,
+        message: response.message
+      };
+    }
+    
+    return {
+      success: false,
+      error: response.error || 'Failed to get current user'
+    };
   }
 
   // 투표 API
   async getPolls(): Promise<APIResponse<Poll[]>> {
-    const response = await this.request<PollListResponse>('/polls/');
-    if (response.success && response.data) {
+    try {
+      const response = await this.request<PollListResponse>('/polls/');
+      if (response.success && response.data) {
+        return {
+          success: true,
+          data: response.data.polls || [],
+          message: response.message
+        };
+      }
       return {
-        success: true,
-        data: response.data.polls || [],
-        message: response.message
+        success: false,
+        error: response.error || 'Failed to fetch polls'
+      };
+    } catch (error) {
+      console.error('getPolls error:', error);
+      return {
+        success: false,
+        error: 'Network error: Could not fetch polls'
       };
     }
-    return {
-      success: false,
-      error: response.error || 'Failed to fetch polls'
-    };
   }
 
   async getPoll(pollId: string): Promise<APIResponse<Poll>> {
