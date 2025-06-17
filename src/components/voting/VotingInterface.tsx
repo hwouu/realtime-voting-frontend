@@ -1,4 +1,6 @@
 // src/components/voting/VotingInterface.tsx
+// 상대 경로: /src/components/voting/VotingInterface.tsx
+// 투표 인터페이스 컴포넌트 - 투표 내용 보기, 투표 참여, 비밀번호 검증 및 삭제 기능
 import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Users, Clock, CheckCircle, Circle, Lock, Trash2, Eye, EyeOff } from 'lucide-react';
 import { POLL_COLORS } from '../../utils/constants';
@@ -8,9 +10,10 @@ interface VotingInterfaceProps {
   poll: Poll;
   onVote?: (pollId: string, optionId: string) => void;
   onBack: () => void;
+  onPollDeleted?: (pollId: string) => void; // 새로 추가: 투표 삭제 콜백
 }
 
-export default function VotingInterface({ poll: initialPoll, onVote, onBack }: VotingInterfaceProps) {
+export default function VotingInterface({ poll: initialPoll, onVote, onBack, onPollDeleted }: VotingInterfaceProps) {
   const [poll, setPoll] = useState<Poll>(initialPoll);
   const [selectedOptionId, setSelectedOptionId] = useState<string | null>(null);
   const [hasVoted, setHasVoted] = useState(false);
@@ -24,6 +27,7 @@ export default function VotingInterface({ poll: initialPoll, onVote, onBack }: V
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showDeletePassword, setShowDeletePassword] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false); // 성공 모달 상태 추가
   const wsRef = useRef<WebSocket | null>(null);
 
   // 최초 로딩 시 서버에서 poll 상세 가져오기
@@ -91,6 +95,8 @@ export default function VotingInterface({ poll: initialPoll, onVote, onBack }: V
 
     ws.onmessage = (event) => {
       const data = JSON.parse(event.data);
+      
+      // 투표 결과 업데이트 처리
       if (data.type === 'vote_update' && data.vote_id === poll.id) {
         const totalVotes = data.total_votes;
         const counts = data.counts;
@@ -108,6 +114,18 @@ export default function VotingInterface({ poll: initialPoll, onVote, onBack }: V
             options: updatedOptions,
           };
         });
+      }
+      
+      // 투표 삭제 처리
+      if (data.type === 'vote_deleted' && data.vote_id === poll.id) {
+        console.log('📢 투표가 삭제되었습니다:', data);
+        
+        // 상위 컴포넌트에 삭제 알림
+        if (onPollDeleted) {
+          onPollDeleted(poll.id);
+        }
+        
+        setShowSuccessModal(true); // 성공 모달 표시
       }
     };
 
@@ -165,29 +183,54 @@ export default function VotingInterface({ poll: initialPoll, onVote, onBack }: V
       return;
     }
     
+    setDeleteError(null);
+    
     try {
-      // TODO: 백엔드에 삭제 API가 구현되면 호출
+      // 백엔드 API 명세에 따라 쿼리 스트링으로 password 전송
+      // DELETE /votes/{vote_id}?password=xxxx
       const apiUrl = import.meta.env.VITE_SERVER_API_URL;
-      const res = await fetch(`${apiUrl}/${poll.id}`, {
+      const queryParam = `?password=${encodeURIComponent(deletePassword)}`;
+      
+      console.log(`🗑️ 투표 삭제 요청: ${apiUrl}/${poll.id}${queryParam}`);
+      
+      const res = await fetch(`${apiUrl}/${poll.id}${queryParam}`, {
         method: 'DELETE',
         headers: {
-          'Content-Type': 'application/json',
           'ngrok-skip-browser-warning': 'true'
-        },
-        body: JSON.stringify({ password: deletePassword })
+        }
       });
       
       if (res.ok) {
-        alert('투표가 성공적으로 삭제되었습니다.');
-        onBack();
+        const result = await res.json();
+        console.log('✅ 투표 삭제 성공:', result);
+        
+        // 상위 컴포넌트에 삭제 알림
+        if (onPollDeleted) {
+          onPollDeleted(poll.id);
+        }
+        
+        // 삭제 모달 닫고 성공 모달 표시
+        setShowDeleteModal(false);
+        setShowSuccessModal(true);
+      } else if (res.status === 401) {
+        setDeleteError('비밀번호가 틀렸습니다.');
+      } else if (res.status === 404) {
+        setDeleteError('존재하지 않는 투표입니다.');
       } else {
-        setDeleteError('삭제에 실패했습니다. 비밀번호를 확인해 주세요.');
+        const errorData = await res.text();
+        console.error('❌ 투표 삭제 실패:', res.status, errorData);
+        setDeleteError('삭제에 실패했습니다. 다시 시도해 주세요.');
       }
     } catch (error) {
-      // 아직 API가 구현되지 않은 경우를 위한 임시 처리
-      alert('투표 삭제 기능은 현재 개발 중입니다.');
-      setShowDeleteModal(false);
+      console.error('❌ 투표 삭제 요청 실패:', error);
+      setDeleteError('네트워크 오류가 발생했습니다. 다시 시도해 주세요.');
     }
+  };
+
+  // 성공 모달에서 확인 버튼 클릭 시
+  const handleSuccessConfirm = () => {
+    setShowSuccessModal(false);
+    onBack(); // 투표 목록으로 이동
   };
 
   const formatTimeAgo = (date: Date) => {
@@ -462,6 +505,31 @@ export default function VotingInterface({ poll: initialPoll, onVote, onBack }: V
                   </button>
                 </div>
               </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* 성공 모달 */}
+      {showSuccessModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50">
+          <div className="card-gradient bg-slate-800/95 backdrop-blur-md rounded-2xl shadow-2xl border border-slate-700/50 w-full max-w-sm">
+            <div className="p-6">
+              <div className="text-center mb-6">
+                <div className="w-16 h-16 bg-emerald-500/20 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                  <CheckCircle className="w-8 h-8 text-emerald-400" />
+                </div>
+                <h2 className="text-xl font-bold text-slate-100">삭제 완료</h2>
+                <p className="text-slate-400 mt-2">투표가 성공적으로 삭제되었습니다.</p>
+                <p className="text-emerald-400 text-sm mt-2">실시간으로 모든 사용자에게 반영됩니다.</p>
+              </div>
+
+              <button
+                onClick={handleSuccessConfirm}
+                className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-300 transform hover:scale-105"
+              >
+                확인
+              </button>
             </div>
           </div>
         </div>
