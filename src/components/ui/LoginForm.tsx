@@ -1,14 +1,23 @@
 // src/components/ui/LoginForm.tsx
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { User, Vote } from 'lucide-react';
+import { useLocalStorage } from '../../hooks/useLocalStorage';
 
 interface LoginFormProps {
   onLogin: (nickname: string) => void;
 }
 
 export default function LoginForm({ onLogin }: LoginFormProps) {
+  const [savedNickname] = useLocalStorage<string>('voting_user_nickname', '');
   const [nickname, setNickname] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+
+  // 저장된 닉네임이 있으면 입력 필드에 채우기
+  useEffect(() => {
+    if (savedNickname) {
+      setNickname(savedNickname);
+    }
+  }, [savedNickname]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
