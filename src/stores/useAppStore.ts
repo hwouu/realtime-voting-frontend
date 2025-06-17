@@ -4,7 +4,7 @@
  * React Context + useReducer를 사용한 상태 관리
  */
 
-import { createContext, useContext, useReducer, ReactNode } from 'react';
+import { createContext, useContext, useReducer, ReactNode, createElement } from 'react';
 import type { 
   AppState, 
   User, 
@@ -183,7 +183,6 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'RESET_STATE':
       return {
         ...initialState,
-        // 연결 상태는 유지
         isConnected: state.isConnected,
       };
 
@@ -208,10 +207,11 @@ interface AppProviderProps {
 export function AppProvider({ children }: AppProviderProps) {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
-  return (
-    <AppContext.Provider value={{ state, dispatch }}>
-      {children}
-    </AppContext.Provider>
+  // JSX 대신 createElement 사용
+  return createElement(
+    AppContext.Provider,
+    { value: { state, dispatch } },
+    children
   );
 }
 
@@ -227,43 +227,30 @@ export function useAppStore() {
 
   // 액션 헬퍼 함수들
   const actions = {
-    // 로딩 관련
     setLoading: (loading: boolean) => dispatch({ type: 'SET_LOADING', payload: loading }),
     setError: (error: string | null) => dispatch({ type: 'SET_ERROR', payload: error }),
     clearError: () => dispatch({ type: 'SET_ERROR', payload: null }),
-
-    // 연결 상태
     setConnectionStatus: (connected: boolean) => 
       dispatch({ type: 'SET_CONNECTION_STATUS', payload: connected }),
-
-    // 사용자 관련
     setCurrentUser: (user: User | null) => 
       dispatch({ type: 'SET_CURRENT_USER', payload: user }),
-
-    // 투표 관련
     setPolls: (polls: Poll[]) => dispatch({ type: 'SET_POLLS', payload: polls }),
     addPoll: (poll: Poll) => dispatch({ type: 'ADD_POLL', payload: poll }),
     updatePoll: (poll: Poll) => dispatch({ type: 'UPDATE_POLL', payload: poll }),
     removePoll: (pollId: string) => dispatch({ type: 'REMOVE_POLL', payload: pollId }),
     setActivePoll: (poll: Poll | null) => 
       dispatch({ type: 'SET_ACTIVE_POLL', payload: poll }),
-
-    // 온라인 사용자 관련
     setOnlineUsers: (users: User[]) => 
       dispatch({ type: 'SET_ONLINE_USERS', payload: users }),
     addOnlineUser: (user: User) => 
       dispatch({ type: 'ADD_ONLINE_USER', payload: user }),
     removeOnlineUser: (userId: string) => 
       dispatch({ type: 'REMOVE_ONLINE_USER', payload: userId }),
-
-    // 채팅 관련
     setChatMessages: (messages: ChatMessage[]) => 
       dispatch({ type: 'SET_CHAT_MESSAGES', payload: messages }),
     addChatMessage: (message: ChatMessage) => 
       dispatch({ type: 'ADD_CHAT_MESSAGE', payload: message }),
     clearChatMessages: () => dispatch({ type: 'CLEAR_CHAT_MESSAGES' }),
-
-    // 메모 관련
     setUserMemos: (memos: UserMemo[]) => 
       dispatch({ type: 'SET_USER_MEMOS', payload: memos }),
     addUserMemo: (memo: UserMemo) => 
@@ -272,8 +259,6 @@ export function useAppStore() {
       dispatch({ type: 'UPDATE_USER_MEMO', payload: memo }),
     removeUserMemo: (memoId: string) => 
       dispatch({ type: 'REMOVE_USER_MEMO', payload: memoId }),
-
-    // 전체 상태 리셋
     resetState: () => dispatch({ type: 'RESET_STATE' }),
   };
 
