@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { ArrowLeft, Users, Clock, CheckCircle, Circle } from 'lucide-react';
 import { POLL_COLORS } from '../../utils/constants';
 import type { Poll } from '../../types';
@@ -14,75 +14,89 @@ export default function VotingInterface({ poll: initialPoll, onBack }: VotingInt
   const [hasVoted, setHasVoted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [voteError, setVoteError] = useState<string | null>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
+  // 최초 로딩 시 서버에서 poll 상세 가져오기
   useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    if (poll.isActive) {
-      console.log("⏱ fetchPoll() 등록됨");
-      interval = setInterval(fetchPoll, 5000);
-    }
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [poll.id, poll.isActive]);
-
-  async function fetchPoll() {
-    try {
+    async function fetchPoll() {
       const apiUrl = import.meta.env.VITE_SERVER_API_URL;
-      const res = await fetch(`${apiUrl}/${poll.id}`, {
+      const res = await fetch(`${apiUrl}/${initialPoll.id}`, {
         headers: { "ngrok-skip-browser-warning": "true" }
       });
-      if (!res.ok) return;
-      const data = await res.json();
-      console.log('🎯 fetchPoll data:', data);
-
-      if (!Array.isArray(data.options)) return;
-
-      setPoll((prev) => ({
-        ...prev,
-        totalVotes: data.total_votes,
-        isActive: data.status === '진행중',
-        options: data.options.map((opt: any, idx: number) => {
-          if (typeof opt === 'string') {
-            return {
-              id: opt,
-              text: opt,
-              votes: 0,
-              percentage: 0,
-            };
-          }
-        
-          return {
-            id: opt.option_id || opt.id || `opt_${idx}`,
-            text: opt.text || opt.option_id || '',
-            votes: opt.votes ?? 0,
-            percentage: opt.percentage ?? 0,
-          };
-        })
-      }));
-    } catch (err) {
-      console.error("❌ fetchPoll 에러:", err);
+      if (res.ok) {
+        const data = await res.json();
+        const mappedOptions = (data.options || []).map((opt: any, idx: number) =>
+          typeof opt === 'string'
+            ? { id: opt, text: opt, votes: 0, percentage: 0 }
+            : {
+                id: opt.option_id || opt.id || `opt_${idx}`,
+                text: opt.text || opt.option_id || '',
+                votes: opt.votes ?? 0,
+                percentage: opt.percentage ?? 0,
+              }
+        );
+        setPoll({
+          ...initialPoll,
+          totalVotes: data.total_votes,
+          isActive: data.status === '진행중',
+          options: mappedOptions,
+        });
+      }
     }
-  }
+    fetchPoll();
+  }, [initialPoll.id]);
+
+  useEffect(() => {
+    const ws = new WebSocket(import.meta.env.VITE_WS_API_URL);
+    wsRef.current = ws;
+
+    ws.onopen = () => console.log("🔄 웹소켓 연결 성공");
+
+    ws.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (data.type === 'vote_update' && data.vote_id === poll.id) {
+        const totalVotes = data.total_votes;
+        const counts = data.counts;
+
+        setPoll((prev) => {
+          const updatedOptions = prev.options.map((opt) => {
+            const count = counts[opt.text] ?? 0;
+            const percentage = totalVotes > 0 ? (count / totalVotes) * 100 : 0;
+            return { ...opt, votes: count, percentage };
+          });
+
+          return {
+            ...prev,
+            totalVotes,
+            options: updatedOptions,
+          };
+        });
+      }
+    };
+
+    ws.onerror = (err) => console.error("❌ 웹소켓 에러:", err);
+    ws.onclose = () => console.log("🔌 웹소켓 연결 종료됨");
+
+    return () => {
+      ws.close();
+    };
+  }, [poll.id]);
 
   const handleVote = async () => {
     if (!selectedOptionId || hasVoted) return;
     setLoading(true);
     setVoteError(null);
     try {
-      const apiUrl = import.meta.env.VITE_SERVER_API_URL;
-      const res = await fetch(`${apiUrl}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ option_id: selectedOptionId }),
-      });
-      if (!res.ok) {
-        setVoteError('투표에 실패했습니다. 다시 시도해 주세요.');
-        setLoading(false);
-        return;
-      }
+      wsRef.current?.send(
+        JSON.stringify({
+          type: 'cast_vote',
+          payload: {
+            vote_id: poll.id,
+            choice: selectedOptionId,
+          },
+        })
+      );
       setHasVoted(true);
-      await fetchPoll();
     } catch {
       setVoteError('네트워크 오류가 발생했습니다.');
     } finally {
@@ -125,68 +139,61 @@ export default function VotingInterface({ poll: initialPoll, onBack }: VotingInt
           </div>
           <div className="flex items-center space-x-2">
             <div className={`w-2 h-2 rounded-full ${poll.isActive ? 'bg-emerald-500' : 'bg-green-500'}`}></div>
-            <span className={`text-sm font-medium ${poll.isActive ? 'text-emerald-400' : 'text-green-400'}`}>
-              진행중
-            </span>
+            <span className={`text-sm font-medium ${poll.isActive ? 'text-emerald-400' : 'text-green-400'}`}>진행중</span>
           </div>
         </div>
 
-        {Array.isArray(poll.options) ? (
-          <div className="space-y-4">
-            {poll.options.map((option, index) => {
-              const isSelected = selectedOptionId === option.id;
-              const color = POLL_COLORS[index % POLL_COLORS.length];
-              console.log(option.text)
+        <div className="space-y-4">
+          {poll.options.map((option, index) => {
+            const isSelected = selectedOptionId === option.id;
+            const color = POLL_COLORS[index % POLL_COLORS.length];
 
-              return (
-                <div
-                  key={option.id}
-                  onClick={() => !hasVoted && !loading && setSelectedOptionId(option.id)}
-                  className={`relative p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer ${
-                    isSelected
-                      ? 'border-blue-500 bg-blue-500/10'
-                      : 'border-slate-600/50 bg-slate-700/30 hover:border-slate-500 hover:bg-slate-700/50'
-                  } ${hasVoted || loading ? 'cursor-default' : ''}`}
-                >
-                  <div className="flex items-center justify-between mb-3">
-                    <div className="flex items-center space-x-3">
-                      {hasVoted ? (
-                        <CheckCircle className={`w-5 h-5 ${isSelected ? 'text-blue-400' : 'text-slate-500'}`} />
-                      ) : (
-                        <Circle className={`w-5 h-5 ${isSelected ? 'text-blue-400' : 'text-slate-400'}`} />
-                      )}
-                      <span className={`font-medium ${isSelected ? 'text-blue-300' : 'text-slate-200'}`}>
-                        {option.text}
-                      </span>
+            return (
+              <div
+                key={option.id}
+                onClick={() => !hasVoted && !loading && setSelectedOptionId(option.id)}
+                className={`relative p-4 rounded-xl border-2 transition-all duration-300 cursor-pointer ${
+                  isSelected
+                    ? 'border-blue-500 bg-blue-500/10'
+                    : 'border-slate-600/50 bg-slate-700/30 hover:border-slate-500 hover:bg-slate-700/50'
+                } ${hasVoted || loading ? 'cursor-default' : ''}`}
+              >
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center space-x-3">
+                    {hasVoted ? (
+                      <CheckCircle className={`w-5 h-5 ${isSelected ? 'text-blue-400' : 'text-slate-500'}`} />
+                    ) : (
+                      <Circle className={`w-5 h-5 ${isSelected ? 'text-blue-400' : 'text-slate-400'}`} />
+                    )}
+                    <span className={`font-medium ${isSelected ? 'text-blue-300' : 'text-slate-200'}`}>
+                      {option.text}
+                    </span>
+                  </div>
+                  <div className="text-right">
+                    <div className={`text-sm font-semibold ${isSelected ? 'text-blue-400' : 'text-slate-300'}`}>
+                      {option.votes}표
                     </div>
-                    <div className="text-right">
-                      <div className={`text-sm font-semibold ${isSelected ? 'text-blue-400' : 'text-slate-300'}`}>
-                        {option.votes}표
-                      </div>
-                      <div className={`text-xs ${isSelected ? 'text-blue-400' : 'text-slate-500'}`}>
-                        {option.percentage.toFixed(1)}%
-                      </div>
+                    <div className={`text-xs ${isSelected ? 'text-blue-400' : 'text-slate-500'}`}>
+                      {option.percentage.toFixed(1)}%
                     </div>
                   </div>
-                  <div className="w-full bg-slate-600/30 rounded-full h-2 overflow-hidden">
-                    <div
-                      className="h-full transition-all duration-700 ease-out rounded-full"
-                      style={{
-                        width: `${option.percentage}%`,
-                        backgroundColor: color,
-                      }}
-                    ></div>
-                  </div>
-                  {isSelected && !hasVoted && (
-                    <div className="absolute inset-0 bg-blue-500/5 rounded-xl pointer-events-none"></div>
-                  )}
                 </div>
-              );
-            })}
-          </div>
-        ) : (
-          <div className="text-slate-400 text-sm">선택지를 불러오는 중입니다...</div>
-        )}
+                <div className="w-full bg-slate-600/30 rounded-full h-2 overflow-hidden">
+                  <div
+                    className="h-full transition-all duration-700 ease-out rounded-full"
+                    style={{
+                      width: `${option.percentage}%`,
+                      backgroundColor: color,
+                    }}
+                  ></div>
+                </div>
+                {isSelected && !hasVoted && (
+                  <div className="absolute inset-0 bg-blue-500/5 rounded-xl pointer-events-none"></div>
+                )}
+              </div>
+            );
+          })}
+        </div>
 
         {!hasVoted && (
           <div className="mt-6 pt-6 border-t border-slate-700/50">
