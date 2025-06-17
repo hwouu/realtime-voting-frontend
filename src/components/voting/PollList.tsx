@@ -8,7 +8,8 @@ interface PollListProps {
 }
 
 export default function PollList({ polls, onSelectPoll }: PollListProps) {
-  const formatTimeAgo = (date: Date) => {
+  const formatTimeAgo = (dateString: string) => {
+    const date = new Date(dateString);
     const now = new Date();
     const diffInSeconds = Math.floor((now.getTime() - date.getTime()) / 1000);
     
@@ -19,7 +20,7 @@ export default function PollList({ polls, onSelectPoll }: PollListProps) {
   };
 
   const getTopOption = (poll: Poll) => {
-    if (poll.totalVotes === 0) return null;
+    if (poll.total_votes === 0) return null;
     return poll.options.reduce((prev, current) => 
       prev.votes > current.votes ? prev : current
     );
@@ -67,16 +68,16 @@ export default function PollList({ polls, onSelectPoll }: PollListProps) {
               <div className="flex items-center space-x-4 mb-4">
                 <div className="flex items-center space-x-1 text-slate-400">
                   <Users className="w-4 h-4" />
-                  <span className="text-sm">{poll.totalVotes}표</span>
+                  <span className="text-sm">{poll.total_votes}표</span>
                 </div>
                 <div className="flex items-center space-x-1 text-slate-400">
                   <Clock className="w-4 h-4" />
-                  <span className="text-sm">{formatTimeAgo(poll.createdAt)}</span>
+                  <span className="text-sm">{formatTimeAgo(poll.created_at)}</span>
                 </div>
                 <div className="flex items-center space-x-1">
-                  <div className={`w-2 h-2 rounded-full ${poll.isActive ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
-                  <span className={`text-sm ${poll.isActive ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {poll.isActive ? '진행중' : '종료됨'}
+                  <div className={`w-2 h-2 rounded-full ${poll.is_active ? 'bg-emerald-500' : 'bg-red-500'}`}></div>
+                  <span className={`text-sm ${poll.is_active ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {poll.is_active ? '진행중' : '종료됨'}
                   </span>
                 </div>
               </div>
