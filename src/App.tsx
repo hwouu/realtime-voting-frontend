@@ -4,7 +4,7 @@
  * 백엔드 API와 WebSocket 통합
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { AppProvider } from './stores/useAppStore';
 import { useAppStore } from './stores/useAppStore';
 import { useWebSocket } from './hooks/useWebSocket';
@@ -94,18 +94,18 @@ function AppContent() {
           apiService.setToken('');
         });
     }
-  }, []);
+  }, [actions, connectWebSocket, executeLogin, loadPolls]);
 
   // 투표 목록 로드
-  const loadPolls = async () => {
+  const loadPolls = useCallback(async () => {
     const polls = await executeGetPolls(() => apiService.getPolls());
     if (polls) {
       actions.setPolls(polls);
     }
-  };
+  }, [executeGetPolls, actions]);
 
   // 로그인/회원가입 처리
-  const handleLogin = async (nickname: string, isSignUp: boolean = false) => {
+  const handleLogin = useCallback(async (nickname: string, isSignUp: boolean = false) => {
     try {
       let response;
       if (isSignUp) {
@@ -130,7 +130,7 @@ function AppContent() {
         actions.setError('로그인에 실패했습니다. 닉네임을 확인해주세요.');
       }
     }
-  };
+  }, [executeLogin, connectWebSocket, loadPolls, actions]);
 
   // 투표 생성 처리
   const handleCreatePoll = async (pollData: {
@@ -220,7 +220,6 @@ function AppContent() {
               <PollList
                 polls={polls}
                 onSelectPoll={(poll) => actions.setActivePoll(poll)}
-                onCreatePoll={() => setShowCreateModal(true)}
               />
             )}
           </div>
@@ -241,7 +240,7 @@ function AppContent() {
       {/* 투표 생성 모달 */}
       {showCreateModal && (
         <CreatePollModal
-          onCreatePoll={handleCreatePoll}
+          onCreate={handleCreatePoll}
           onClose={() => setShowCreateModal(false)}
         />
       )}
