@@ -4,67 +4,89 @@ import { Send, MessageCircle } from 'lucide-react';
 import type { ChatMessage } from '../../types';
 
 interface ChatPanelProps {
-  messages?: ChatMessage[];
+  nickname: string;
   onSendMessage?: (message: string) => void;
 }
 
-export default function ChatPanel({ messages = [], onSendMessage }: ChatPanelProps) {
+export default function ChatPanel({ nickname, onSendMessage }: ChatPanelProps) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
-  // Demo messages for development
-  const demoMessages: ChatMessage[] = [
-    {
-      id: '1',
-      userId: 'user1',
-      username: '현우',
-      message: '안녕하세요! 투표에 참여해보세요',
-      timestamp: new Date(Date.now() - 300000),
-      type: 'message'
-    },
-    {
-      id: '2',
-      userId: 'system',
-      username: 'System',
-      message: '새로운 투표가 생성되었습니다: "점심 메뉴 투표"',
-      timestamp: new Date(Date.now() - 240000),
-      type: 'system'
-    },
-    {
-      id: '3',
-      userId: 'user2',
-      username: '민수',
-      message: '한식이 좋을 것 같아요!',
-      timestamp: new Date(Date.now() - 180000),
-      type: 'message'
-    },
-    {
-      id: '4',
-      userId: 'user3',
-      username: '수현',
-      message: '저는 중식 추천합니다 👍',
-      timestamp: new Date(Date.now() - 120000),
-      type: 'message'
-    }
-  ];
-
-  const displayMessages = messages.length > 0 ? messages : demoMessages;
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
+  // ✅ WebSocket 연결 및 수신
   useEffect(() => {
-    scrollToBottom();
-  }, [displayMessages]);
+    const wsUrl = import.meta.env.VITE_WS_API_URL + '/chat';
+    const socket = new WebSocket(`${wsUrl}?nickname=${encodeURIComponent(nickname)}`);
+    wsRef.current = socket;
 
+    socket.onopen = () => {
+      console.log('✅ WebSocket 연결됨');
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        // 서버에서 오는 메시지 형식이 chat_message일 경우만 처리
+        if (data.type === 'chat_message' && data.message) {
+          const newMsg: ChatMessage = {
+            id: crypto.randomUUID(),
+            userId: 'server',
+            username: '서버',
+            message: data.message,
+            timestamp: new Date(),
+            type: 'message',
+          };
+          setMessages((prev) => [...prev, newMsg]);
+        }
+      } catch (err) {
+        console.error('❌ 메시지 파싱 오류:', err);
+      }
+    };
+
+    socket.onclose = () => console.log('❌ WebSocket 종료됨');
+    socket.onerror = (e) => console.error('❌ WebSocket 오류:', e);
+
+    return () => {
+      socket.close();
+    };
+  }, []);
+
+  // 스크롤 자동 이동
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // 메시지 전송
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
 
+    const messageToSend = {
+      type: 'chat_message',
+      message: newMessage.trim(),
+    };
+
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      wsRef.current.send(JSON.stringify(messageToSend));
+    }
+
+    // 내 메시지도 바로 화면에 추가
+    const newMsg: ChatMessage = {
+      id: crypto.randomUUID(),
+      userId: 'me',
+      username: '나',
+      message: newMessage.trim(),
+      timestamp: new Date(),
+      type: 'message',
+    };
+    setMessages((prev) => [...prev, newMsg]);
+
     if (onSendMessage) {
       onSendMessage(newMessage.trim());
     }
+
     setNewMessage('');
   };
 
@@ -101,7 +123,7 @@ export default function ChatPanel({ messages = [], onSendMessage }: ChatPanelPro
 
       {/* Messages */}
       <div className="flex-1 p-4 overflow-y-auto scrollbar-thin space-y-3">
-        {displayMessages.map((message) => (
+        {messages.map((message) => (
           <div
             key={message.id}
             className={`p-3 rounded-lg border ${getMessageStyle(message.type)}`}
