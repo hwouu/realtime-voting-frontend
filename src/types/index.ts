@@ -30,7 +30,7 @@ export interface Vote {
   pollId: string;
   optionId: string;
   userId: string;
-  timestamp: Date;
+  timestamp: string;
 }
 
 export interface ChatMessage {
@@ -38,7 +38,7 @@ export interface ChatMessage {
   userId: string;
   username: string;
   message: string;
-  timestamp: Date;
+  timestamp: string;
   type: 'message' | 'system' | 'vote_update';
 }
 

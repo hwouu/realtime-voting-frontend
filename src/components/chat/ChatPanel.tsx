@@ -14,7 +14,7 @@ export default function ChatPanel({ nickname, onSendMessage }: ChatPanelProps) {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const wsRef = useRef<WebSocket | null>(null);
 
-  // ✅ WebSocket 연결 및 수신
+  // WebSocket 연결
   useEffect(() => {
     const wsUrl = import.meta.env.VITE_WS_API_URL + '/chat';
     const socket = new WebSocket(`${wsUrl}?nickname=${encodeURIComponent(nickname)}`);
@@ -28,30 +28,33 @@ export default function ChatPanel({ nickname, onSendMessage }: ChatPanelProps) {
       try {
         const data = JSON.parse(event.data);
 
-        // 서버에서 오는 메시지 형식이 chat_message일 경우만 처리
-        if (data.type === 'chat_message' && data.message) {
+        if (data.type === 'chat_message' && data.data) {
+          const { nickname: sender, message, timestamp } = data.data;
+
           const newMsg: ChatMessage = {
             id: crypto.randomUUID(),
-            userId: 'server',
-            username: '서버',
-            message: data.message,
-            timestamp: new Date(),
+            userId: sender,
+            username: sender,
+            message,
+            timestamp, // 문자열 그대로 사용
             type: 'message',
           };
+
+          console.log('[RECEIVED]', newMsg);
           setMessages((prev) => [...prev, newMsg]);
         }
       } catch (err) {
-        console.error('❌ 메시지 파싱 오류:', err);
+        console.error('❌ WebSocket 메시지 파싱 실패:', err);
       }
     };
 
-    socket.onclose = () => console.log('❌ WebSocket 종료됨');
     socket.onerror = (e) => console.error('❌ WebSocket 오류:', e);
+    socket.onclose = () => console.log('❌ WebSocket 종료됨');
 
     return () => {
       socket.close();
     };
-  }, []);
+  }, [nickname]);
 
   // 스크롤 자동 이동
   useEffect(() => {
@@ -63,34 +66,21 @@ export default function ChatPanel({ nickname, onSendMessage }: ChatPanelProps) {
     e.preventDefault();
     if (!newMessage.trim()) return;
 
-    const messageToSend = {
+    const payload = {
       type: 'chat_message',
       message: newMessage.trim(),
     };
 
     if (wsRef.current?.readyState === WebSocket.OPEN) {
-      wsRef.current.send(JSON.stringify(messageToSend));
-    }
-
-    // 내 메시지도 바로 화면에 추가
-    const newMsg: ChatMessage = {
-      id: crypto.randomUUID(),
-      userId: 'me',
-      username: '나',
-      message: newMessage.trim(),
-      timestamp: new Date(),
-      type: 'message',
-    };
-    setMessages((prev) => [...prev, newMsg]);
-
-    if (onSendMessage) {
-      onSendMessage(newMessage.trim());
+      console.log('[SEND]', payload);
+      wsRef.current.send(JSON.stringify(payload));
     }
 
     setNewMessage('');
   };
 
-  const formatTime = (timestamp: Date) => {
+  const formatTime = (timestamp: string | Date) => {
+    if (typeof timestamp === 'string') return timestamp;
     return new Intl.DateTimeFormat('ko-KR', {
       hour: '2-digit',
       minute: '2-digit',
@@ -110,7 +100,6 @@ export default function ChatPanel({ nickname, onSendMessage }: ChatPanelProps) {
 
   return (
     <div className="card-gradient bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-700/50 p-0 h-80 flex flex-col">
-      {/* Header */}
       <div className="flex items-center space-x-3 p-4 border-b border-slate-700/50">
         <div className="flex items-center justify-center w-8 h-8 bg-blue-500/20 rounded-lg">
           <MessageCircle className="w-4 h-4 text-blue-400" />
@@ -121,7 +110,6 @@ export default function ChatPanel({ nickname, onSendMessage }: ChatPanelProps) {
         </div>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 p-4 overflow-y-auto scrollbar-thin space-y-3">
         {messages.map((message) => (
           <div
@@ -141,17 +129,11 @@ export default function ChatPanel({ nickname, onSendMessage }: ChatPanelProps) {
             <p className={`text-sm ${message.type === 'message' ? 'text-slate-200' : ''}`}>
               {message.message}
             </p>
-            {message.type !== 'message' && (
-              <div className="text-xs text-slate-500 mt-1">
-                {formatTime(message.timestamp)}
-              </div>
-            )}
           </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Message Input */}
       <div className="p-4 border-t border-slate-700/50">
         <form onSubmit={handleSubmit} className="flex space-x-2">
           <input
