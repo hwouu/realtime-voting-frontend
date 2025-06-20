@@ -4,71 +4,83 @@ import { Send, MessageCircle } from 'lucide-react';
 import type { ChatMessage } from '../../types';
 
 interface ChatPanelProps {
-  messages?: ChatMessage[];
+  nickname: string;
   onSendMessage?: (message: string) => void;
 }
 
-export default function ChatPanel({ messages = [], onSendMessage }: ChatPanelProps) {
+export default function ChatPanel({ nickname, onSendMessage }: ChatPanelProps) {
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const wsRef = useRef<WebSocket | null>(null);
 
-  // Demo messages for development
-  const demoMessages: ChatMessage[] = [
-    {
-      id: '1',
-      userId: 'user1',
-      username: '현우',
-      message: '안녕하세요! 투표에 참여해보세요',
-      timestamp: new Date(Date.now() - 300000),
-      type: 'message'
-    },
-    {
-      id: '2',
-      userId: 'system',
-      username: 'System',
-      message: '새로운 투표가 생성되었습니다: "점심 메뉴 투표"',
-      timestamp: new Date(Date.now() - 240000),
-      type: 'system'
-    },
-    {
-      id: '3',
-      userId: 'user2',
-      username: '민수',
-      message: '한식이 좋을 것 같아요!',
-      timestamp: new Date(Date.now() - 180000),
-      type: 'message'
-    },
-    {
-      id: '4',
-      userId: 'user3',
-      username: '수현',
-      message: '저는 중식 추천합니다 👍',
-      timestamp: new Date(Date.now() - 120000),
-      type: 'message'
-    }
-  ];
-
-  const displayMessages = messages.length > 0 ? messages : demoMessages;
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  };
-
+  // WebSocket 연결
   useEffect(() => {
-    scrollToBottom();
-  }, [displayMessages]);
+    const wsUrl = import.meta.env.VITE_WS_API_URL + '/chat';
+    const socket = new WebSocket(`${wsUrl}?nickname=${encodeURIComponent(nickname)}`);
+    wsRef.current = socket;
 
+    socket.onopen = () => {
+      console.log('✅ WebSocket 연결됨');
+    };
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+
+        if (data.type === 'chat_message' && data.data) {
+          const { nickname: sender, message, timestamp } = data.data;
+
+          const newMsg: ChatMessage = {
+            id: crypto.randomUUID(),
+            userId: sender,
+            username: sender,
+            message,
+            timestamp, // 문자열 그대로 사용
+            type: 'message',
+          };
+
+          console.log('[RECEIVED]', newMsg);
+          setMessages((prev) => [...prev, newMsg]);
+        }
+      } catch (err) {
+        console.error('❌ WebSocket 메시지 파싱 실패:', err);
+      }
+    };
+
+    socket.onerror = (e) => console.error('❌ WebSocket 오류:', e);
+    socket.onclose = () => console.log('❌ WebSocket 종료됨');
+
+    return () => {
+      socket.close();
+    };
+  }, [nickname]);
+
+  // 스크롤 자동 이동
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
+  // 메시지 전송
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newMessage.trim()) return;
 
-    if (onSendMessage) {
-      onSendMessage(newMessage.trim());
+    const payload = {
+      type: 'chat_message',
+      message: newMessage.trim(),
+    };
+
+    if (wsRef.current?.readyState === WebSocket.OPEN) {
+      console.log('[SEND]', payload);
+      wsRef.current.send(JSON.stringify(payload));
     }
+
     setNewMessage('');
   };
 
-  const formatTime = (timestamp: Date) => {
+  const formatTime = (timestamp: string | Date) => {
+    if (typeof timestamp === 'string') return timestamp;
     return new Intl.DateTimeFormat('ko-KR', {
       hour: '2-digit',
       minute: '2-digit',
@@ -88,7 +100,6 @@ export default function ChatPanel({ messages = [], onSendMessage }: ChatPanelPro
 
   return (
     <div className="card-gradient bg-slate-800/90 backdrop-blur-sm rounded-2xl shadow-xl border border-slate-700/50 p-0 h-80 flex flex-col">
-      {/* Header */}
       <div className="flex items-center space-x-3 p-4 border-b border-slate-700/50">
         <div className="flex items-center justify-center w-8 h-8 bg-blue-500/20 rounded-lg">
           <MessageCircle className="w-4 h-4 text-blue-400" />
@@ -99,9 +110,8 @@ export default function ChatPanel({ messages = [], onSendMessage }: ChatPanelPro
         </div>
       </div>
 
-      {/* Messages */}
       <div className="flex-1 p-4 overflow-y-auto scrollbar-thin space-y-3">
-        {displayMessages.map((message) => (
+        {messages.map((message) => (
           <div
             key={message.id}
             className={`p-3 rounded-lg border ${getMessageStyle(message.type)}`}
@@ -119,17 +129,11 @@ export default function ChatPanel({ messages = [], onSendMessage }: ChatPanelPro
             <p className={`text-sm ${message.type === 'message' ? 'text-slate-200' : ''}`}>
               {message.message}
             </p>
-            {message.type !== 'message' && (
-              <div className="text-xs text-slate-500 mt-1">
-                {formatTime(message.timestamp)}
-              </div>
-            )}
           </div>
         ))}
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Message Input */}
       <div className="p-4 border-t border-slate-700/50">
         <form onSubmit={handleSubmit} className="flex space-x-2">
           <input
